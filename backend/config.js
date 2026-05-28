@@ -11,13 +11,21 @@ if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process
   process.exit(1);
 }
 
+const getCorsOrigins = () => {
+  const list = toList(
+    process.env.CORS_ORIGINS ||
+      (process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173,http://127.0.0.1:5173")
+  );
+  if (process.env.NODE_ENV === "production" && !list.includes("*") && !list.includes("https://infinitybarber.pages.dev")) {
+    list.push("https://infinitybarber.pages.dev");
+  }
+  return list;
+};
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
-  corsOrigins: toList(
-    process.env.CORS_ORIGINS ||
-      (process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173,http://127.0.0.1:5173")
-  ),
+  corsOrigins: getCorsOrigins(),
   adminUsername: process.env.ADMIN_USERNAME || "admin",
   adminPassword: process.env.ADMIN_PASSWORD || "1234",
   defaultBarberPassword: process.env.DEFAULT_BARBER_PASSWORD || "1234",
