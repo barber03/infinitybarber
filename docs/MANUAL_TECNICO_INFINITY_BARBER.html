@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manual Tecnico Infinity Barber</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #5d687c;
+      --line: #dfe5ef;
+      --brand: #5b5fc7;
+      --brand-dark: #34377d;
+      --soft: #eef0ff;
+      --code: #101827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.62;
+    }
+
+    .page {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+      padding: 34px 20px 56px;
+    }
+
+    .document {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 24px 70px rgba(23, 32, 51, 0.10);
+      overflow: hidden;
+    }
+
+    .cover {
+      padding: 56px 60px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(91, 95, 199, 0.96), rgba(33, 37, 84, 0.98)),
+        radial-gradient(circle at 75% 20%, rgba(255, 255, 255, 0.24), transparent 28%);
+    }
+
+    .cover .label {
+      margin: 0 0 18px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.82;
+    }
+
+    .cover h1 {
+      margin: 0;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .cover .subtitle {
+      max-width: 720px;
+      margin: 22px 0 0;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .meta div {
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .meta strong {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.72;
+    }
+
+    .meta span {
+      display: block;
+      margin-top: 4px;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcff;
+    }
+
+    button {
+      border: 0;
+      border-radius: 9px;
+      padding: 10px 16px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--brand-dark);
+    }
+
+    main {
+      padding: 44px 60px 64px;
+    }
+
+    h2 {
+      margin: 42px 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--brand-dark);
+      font-size: 25px;
+      line-height: 1.25;
+    }
+
+    h2:first-child {
+      margin-top: 0;
+    }
+
+    h3 {
+      margin: 28px 0 10px;
+      color: #26314b;
+      font-size: 19px;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    ul,
+    ol {
+      margin: 10px 0 18px 22px;
+      padding: 0;
+    }
+
+    li {
+      margin: 5px 0;
+    }
+
+    .note {
+      margin: 18px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--brand);
+      border-radius: 10px;
+      background: var(--soft);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin: 16px 0 20px;
+    }
+
+    .card {
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfcff;
+    }
+
+    .card h3 {
+      margin-top: 0;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #edf1f7;
+      color: #1f2b44;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.94em;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 14px 0 22px;
+      padding: 18px;
+      border-radius: 12px;
+      background: var(--code);
+      color: #edf2ff;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 22px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef1f8;
+      color: #26314b;
+    }
+
+    .footer {
+      padding: 24px 60px 34px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      background: #fbfcff;
+      font-size: 13px;
+    }
+
+    @media (max-width: 760px) {
+      .cover,
+      main,
+      .footer {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .meta,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        justify-content: stretch;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        width: 100%;
+        padding: 0;
+      }
+
+      .document {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .toolbar {
+        display: none;
+      }
+
+      h2 {
+        page-break-after: avoid;
+      }
+
+      pre,
+      table,
+      .card,
+      .note {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <article class="document">
+      <header class="cover">
+        <p class="label">Manual Tecnico</p>
+        <h1>Infinity Barber</h1>
+        <p class="subtitle">Guia tecnica para instalacion, configuracion, ejecucion, mantenimiento y despliegue del sistema web de gestion de barberia.</p>
+        <section class="meta" aria-label="Datos del documento">
+          <div><strong>Proyecto</strong><span>Infinity Barber</span></div>
+          <div><strong>Tipo de sistema</strong><span>Aplicacion web full-stack</span></div>
+          <div><strong>Institucion</strong><span>SENA</span></div>
+          <div><strong>Programa</strong><span>ADSO - Analisis y Desarrollo de Software</span></div>
+          <div><strong>Aprendiz</strong><span>Jesus David Figueroa Alvarez</span></div>
+          <div><strong>Instructor(a)</strong><span>Karina Meza</span></div>
+          <div><strong>Fecha</strong><span>21/04/2026</span></div>
+          <div><strong>Documento</strong><span>Manual tecnico</span></div>
+        </section>
+      </header>
+
+      <div class="toolbar">
+        <button type="button" onclick="window.print()">Imprimir o guardar como PDF</button>
+      </div>
+
+      <main>
+        <h2>1. Introduccion</h2>
+        <p>El presente manual tecnico describe la estructura, configuracion, instalacion, ejecucion y mantenimiento del sistema Infinity Barber. Esta guia esta dirigida a desarrolladores, administradores tecnicos o personal encargado de instalar, revisar, modificar o desplegar la aplicacion.</p>
+        <p>Infinity Barber es una aplicacion web full-stack construida con React, TypeScript, Node.js, Express y SQLite. El sistema permite gestionar servicios, barberos, reservas, galeria de imagenes, autenticacion por roles, carga de comprobantes de pago, asistente virtual con IA y analizador facial para recomendacion de estilos.</p>
+
+        <h2>2. Objetivo del Manual</h2>
+        <p>Documentar los aspectos tecnicos necesarios para instalar, ejecutar, mantener y comprender el funcionamiento interno de Infinity Barber.</p>
+        <ul>
+          <li>Describir la arquitectura general del sistema.</li>
+          <li>Explicar la estructura de carpetas y archivos principales.</li>
+          <li>Indicar los requisitos tecnicos de instalacion.</li>
+          <li>Documentar la configuracion de variables de entorno.</li>
+          <li>Explicar la ejecucion local.</li>
+          <li>Describir la base de datos y sus tablas principales.</li>
+          <li>Documentar las rutas principales de la API REST.</li>
+          <li>Explicar los mecanismos de seguridad implementados.</li>
+          <li>Orientar tareas de mantenimiento, respaldo y solucion de errores.</li>
+        </ul>
+
+        <h2>3. Descripcion General del Sistema</h2>
+        <div class="grid">
+          <section class="card">
+            <h3>Frontend</h3>
+            <p>Aplicacion web desarrollada con React, TypeScript, Vite y Tailwind CSS.</p>
+          </section>
+          <section class="card">
+            <h3>Backend</h3>
+            <p>Servidor API REST desarrollado con Node.js y Express.</p>
+          </section>
+          <section class="card">
+            <h3>Base de datos</h3>
+            <p>SQLite para persistencia local de servicios, perfiles, reservas y galeria.</p>
+          </section>
+          <section class="card">
+            <h3>Inteligencia Artificial</h3>
+            <p>Asistente virtual conectado a modelo de lenguaje y analizador facial local con face-api.js.</p>
+          </section>
+        </div>
+
+        <h2>4. Arquitectura del Sistema</h2>
+        <p>El sistema implementa una arquitectura cliente-servidor.</p>
+        <pre>Cliente web
+   |
+   | HTTP / Fetch API
+   v
+Frontend React + Vite
+   |
+   | Solicitudes REST
+   v
+Backend Node.js + Express
+   |
+   | Consultas SQL
+   v
+Base de datos SQLite</pre>
+
+        <h3>4.1 Frontend</h3>
+        <p>Contiene las pantallas publicas y privadas: pagina principal, servicios, equipo, galeria, reserva, analizador facial, login de administrador, panel de administrador, login de barbero y panel de barbero.</p>
+
+        <h3>4.2 Backend</h3>
+        <p>Expone la API REST encargada de autenticar usuarios, validar datos, controlar permisos por rol, gestionar reservas, gestionar servicios, gestionar barberos, administrar galeria, cargar archivos y conectar el asistente IA.</p>
+
+        <h3>4.3 Base de datos</h3>
+        <p>SQLite almacena la informacion principal del negocio: servicios, usuarios, citas y galeria.</p>
+
+        <h2>5. Tecnologias Utilizadas</h2>
+        <table>
+          <thead>
+            <tr><th>Area</th><th>Tecnologias</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Frontend</td><td>React 19, TypeScript, Vite, Tailwind CSS, React Router, Lucide React, Sonner, face-api.js, react-webcam</td></tr>
+            <tr><td>Backend</td><td>Node.js, Express, SQLite3, bcryptjs, jsonwebtoken, multer, cors, helmet, express-rate-limit, dotenv</td></tr>
+            <tr><td>Despliegue</td><td>Nginx, Render, Git</td></tr>
+          </tbody>
+        </table>
+
+        <h2>6. Requisitos Tecnicos</h2>
+        <h3>6.1 Requisitos para ejecucion local</h3>
+        <ul>
+          <li>Node.js instalado.</li>
+          <li>npm instalado.</li>
+          <li>Navegador web actualizado.</li>
+          <li>Sistema operativo Windows, Linux o macOS.</li>
+          <li>Conexion a internet si se utiliza el asistente IA.</li>
+        </ul>
+
+        <h3>6.2 Puertos utilizados</h3>
+        <pre>Frontend desarrollo: 5173
+Backend API: 3000</pre>
+
+        <h2>7. Estructura del Proyecto</h2>
+        <pre>barber2/
+|-- package.json
+|-- package-lock.json
+|-- README.md
+|-- DOCUMENTACION_PROYECTO_INFINITY_BARBER.md
+|-- MANUAL_DE_USUARIO_INFINITY_BARBER.md
+|-- MANUAL_TECNICO_INFINITY_BARBER.md
+|-- MANUAL_TECNICO_INFINITY_BARBER.html
+|-- render.yaml
+|-- barber/
+|   |-- package.json
+|   |-- vite.config.js
+|   |-- public/
+|   |   |-- gallery/
+|   |   |-- barbers/
+|   |   |-- payments/
+|   |   |-- models/
+|   |   |-- nequi-qr.jpeg
+|   |-- src/
+|   |   |-- main.tsx
+|   |   |-- app/
+|   |   |   |-- App.tsx
+|   |   |   |-- routes.ts
+|   |   |   |-- components/
+|   |   |   |-- pages/
+|   |   |   |-- lib/
+|   |-- server/
+|   |   |-- package.json
+|   |   |-- index.js
+|   |   |-- database.js
+|   |   |-- auth.js
+|   |   |-- config.js
+|   |   |-- scripts/</pre>
+
+        <h2>8. Archivos Principales</h2>
+        <h3>8.1 Frontend</h3>
+        <ul>
+          <li><code>barber/src/main.tsx</code>: punto de entrada de React.</li>
+          <li><code>barber/src/app/App.tsx</code>: componente principal de la aplicacion.</li>
+          <li><code>barber/src/app/routes.ts</code>: definicion de rutas.</li>
+          <li><code>barber/src/app/lib/api.ts</code>: comunicacion con el backend.</li>
+          <li><code>barber/src/app/lib/storage.ts</code>: manejo de sesiones en navegador.</li>
+          <li><code>barber/src/app/lib/faceAnalysis.ts</code>: logica de analisis facial.</li>
+          <li><code>barber/src/app/components/BookingPage.tsx</code>: modulo de reservas.</li>
+          <li><code>barber/src/app/components/AdminPanel.tsx</code>: panel administrativo.</li>
+          <li><code>barber/src/app/components/BarberPanel.tsx</code>: panel del barbero.</li>
+          <li><code>barber/src/app/components/AIAssistant.tsx</code>: asistente virtual.</li>
+          <li><code>barber/src/app/components/FaceAnalyzer.tsx</code>: analizador facial.</li>
+        </ul>
+
+        <h3>8.2 Backend</h3>
+        <ul>
+          <li><code>barber/server/index.js</code>: servidor Express y rutas API.</li>
+          <li><code>barber/server/database.js</code>: inicializacion y conexion SQLite.</li>
+          <li><code>barber/server/auth.js</code>: autenticacion, JWT, hash y control de roles.</li>
+          <li><code>barber/server/config.js</code>: configuracion general del servidor.</li>
+          <li><code>barber/server/scripts/backup.js</code>: script de respaldo.</li>
+        </ul>
+
+        <h2>9. Instalacion Local</h2>
+        <h3>9.1 Instalar dependencias generales</h3>
+        <pre>npm.cmd install</pre>
+        <h3>9.2 Instalar dependencias del frontend</h3>
+        <pre>cd barber
+npm.cmd install</pre>
+        <h3>9.3 Instalar dependencias del backend</h3>
+        <pre>cd barber/server
+npm.cmd install</pre>
+
+        <h2>10. Variables de Entorno</h2>
+        <p>Crear un archivo <code>.env</code> dentro de <code>barber/server/.env</code>.</p>
+        <pre>PORT=3000
+JWT_SECRET=clave_segura_para_tokens
+GITHUB_TOKEN=token_para_modelo_ia
+AI_MODEL=gpt-4o
+UPLOAD_DIR=../public
+CORS_ORIGINS=http://localhost:5173,http://localhost</pre>
+
+        <table>
+          <thead>
+            <tr><th>Variable</th><th>Descripcion</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>PORT</code></td><td>Puerto donde escucha el backend.</td></tr>
+            <tr><td><code>JWT_SECRET</code></td><td>Clave usada para firmar tokens JWT.</td></tr>
+            <tr><td><code>GITHUB_TOKEN</code></td><td>Token requerido para consumir el servicio de IA conversacional.</td></tr>
+            <tr><td><code>AI_MODEL</code></td><td>Modelo usado por el asistente virtual.</td></tr>
+            <tr><td><code>UPLOAD_DIR</code></td><td>Carpeta base para guardar imagenes.</td></tr>
+            <tr><td><code>CORS_ORIGINS</code></td><td>Origenes permitidos para consumir la API.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note">
+          <strong>Recomendacion:</strong> no subir archivos <code>.env</code> al repositorio. Usar un <code>JWT_SECRET</code> largo y mantener privado el token de IA.
+        </div>
+
+        <h2>11. Ejecucion Local</h2>
+        <h3>11.1 Ejecutar todo el sistema desde la raiz</h3>
+        <pre>npm.cmd start</pre>
+
+        <h3>11.2 Ejecutar frontend manualmente</h3>
+        <pre>cd barber
+npm.cmd run dev</pre>
+        <p>Ruta esperada: <code>http://localhost:5173</code></p>
+
+        <h3>11.3 Ejecutar backend manualmente</h3>
+        <pre>cd barber/server
+npm.cmd start</pre>
+        <p>Ruta esperada: <code>http://localhost:3000</code></p>
+
+        <h3>11.4 Verificar backend</h3>
+        <pre>GET http://localhost:3000/api/health</pre>
+        <p>Respuesta esperada:</p>
+        <pre>{
+  "status": "ok",
+  "date": "fecha_actual"
+}</pre>
+
+        <h2>12. Compilacion del Frontend</h2>
+        <pre>cd barber
+npm.cmd run build</pre>
+        <p>El resultado queda en <code>barber/dist/</code>.</p>
+
+        <h2>13. Base de Datos</h2>
+        <p>El sistema utiliza SQLite. La inicializacion de tablas y datos base se administra desde <code>barber/server/database.js</code>.</p>
+
+        <h3>14.1 Tablas principales</h3>
+        <table>
+          <thead>
+            <tr><th>Tabla</th><th>Campos principales</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>services</code></td><td>id, name, price, duration_minutes, created_at</td></tr>
+            <tr><td><code>profiles</code></td><td>id, full_name, username, role, avatar_url, description, barber_password, password_hash, created_at</td></tr>
+            <tr><td><code>gallery</code></td><td>id, url, created_at</td></tr>
+            <tr><td><code>appointments</code></td><td>id, customer_name, customer_phone, service_id, barber_id, appointment_date, start_time, status, payment_method, payment_reference, payment_screenshot, payment_status, notes, ai_recommendation, created_at</td></tr>
+          </tbody>
+        </table>
+
+        <h3>14.2 Relaciones</h3>
+        <ul>
+          <li><code>appointments.service_id</code> se relaciona con <code>services.id</code>.</li>
+          <li><code>appointments.barber_id</code> se relaciona con <code>profiles.id</code>.</li>
+          <li>Los perfiles con rol <code>barber</code> pueden tener reservas asociadas.</li>
+        </ul>
+
+        <h2>14. API REST</h2>
+        <h3>15.1 Rutas publicas</h3>
+        <pre>GET    /api/health
+POST   /api/chat
+POST   /api/payments/upload
+POST   /api/auth/admin/login
+POST   /api/auth/barber/login
+GET    /api/auth/me
+GET    /api/services
+GET    /api/barbers
+GET    /api/gallery
+GET    /api/availability
+POST   /api/appointments</pre>
+
+        <h3>15.2 Rutas privadas de administrador</h3>
+        <p>Requieren token JWT y rol <code>admin</code>.</p>
+        <pre>GET    /api/admin/appointments
+GET    /api/admin/barbers
+POST   /api/admin/barbers/upload
+POST   /api/admin/gallery/upload
+POST   /api/admin/services
+PUT    /api/admin/services/:id
+DELETE /api/admin/services/:id
+POST   /api/admin/barbers
+PUT    /api/admin/barbers/:id
+DELETE /api/admin/barbers/:id
+DELETE /api/admin/gallery/:id
+PUT    /api/admin/appointments/:id
+PATCH  /api/admin/appointments/:id/status
+DELETE /api/admin/appointments/:id</pre>
+
+        <h3>15.3 Rutas privadas de barbero</h3>
+        <p>Requieren token JWT y rol <code>barber</code>.</p>
+        <pre>GET /api/barber/appointments</pre>
+
+        <h2>15. Autenticacion y Autorizacion</h2>
+        <ol>
+          <li>El usuario envia <code>username</code> y <code>password</code>.</li>
+          <li>El backend busca el perfil segun rol.</li>
+          <li>Se compara la contrasena con <code>bcryptjs</code>.</li>
+          <li>Si es valida, se genera un token JWT.</li>
+          <li>El frontend guarda la sesion en almacenamiento local.</li>
+          <li>Las rutas privadas consumen la API usando el token.</li>
+        </ol>
+        <p>Roles del sistema:</p>
+        <pre>admin  -> acceso administrativo completo
+barber -> acceso a su agenda personal</pre>
+
+        <h2>16. Seguridad Implementada</h2>
+        <ul>
+          <li>Contrasenas cifradas con <code>bcryptjs</code>.</li>
+          <li>Autenticacion con JWT.</li>
+          <li>Proteccion por roles.</li>
+          <li>Limitacion de intentos con <code>express-rate-limit</code>.</li>
+          <li>Cabeceras de seguridad con <code>helmet</code>.</li>
+          <li>Validacion de datos de entrada.</li>
+          <li>Filtrado de archivos para permitir solo imagenes.</li>
+          <li>Limite de tamano de archivo.</li>
+          <li>Control de CORS.</li>
+          <li>Uso de variables de entorno para informacion sensible.</li>
+        </ul>
+
+        <h2>17. Carga y Gestion de Archivos</h2>
+        <p>El backend usa <code>multer</code> para recibir imagenes.</p>
+        <pre>barber/public/gallery/    Imagenes de galeria
+barber/public/barbers/    Fotografias de barberos
+barber/public/payments/   Comprobantes de pago
+barber/public/models/     Modelos de IA facial</pre>
+        <p>El servidor acepta archivos cuyo <code>mimetype</code> inicia con <code>image/</code>. El limite configurado es de 5 MB.</p>
+
+        <h2>18. Asistente Virtual IA</h2>
+        <p>El asistente se implementa principalmente en:</p>
+        <pre>barber/src/app/components/AIAssistant.tsx
+barber/server/index.js</pre>
+        <ol>
+          <li>El usuario escribe un mensaje.</li>
+          <li>El frontend envia el historial a <code>/api/chat</code>.</li>
+          <li>El backend agrega instrucciones del sistema.</li>
+          <li>El backend consulta el modelo configurado.</li>
+          <li>El modelo puede solicitar herramientas internas.</li>
+          <li>El backend consulta disponibilidad o crea reservas.</li>
+          <li>La respuesta vuelve al frontend.</li>
+        </ol>
+        <p>Herramientas internas:</p>
+        <ul>
+          <li><code>get_availability</code>: consulta horarios ocupados por barbero y fecha.</li>
+          <li><code>book_appointment</code>: registra una cita si los datos son validos.</li>
+        </ul>
+        <p>Variables requeridas:</p>
+        <pre>GITHUB_TOKEN=token_valido
+AI_MODEL=gpt-4o</pre>
+
+        <h2>19. Analizador Facial IA</h2>
+        <p>El analizador facial se implementa en:</p>
+        <pre>barber/src/app/components/FaceAnalyzer.tsx
+barber/src/app/lib/faceAnalysis.ts
+barber/public/models/</pre>
+        <ol>
+          <li>El navegador solicita acceso a la camara.</li>
+          <li>Se cargan los modelos de <code>face-api.js</code>.</li>
+          <li>El usuario presiona capturar y analizar.</li>
+          <li>El sistema detecta puntos faciales.</li>
+          <li>Se calcula la proporcion del rostro.</li>
+          <li>Se genera una recomendacion de estilo.</li>
+          <li>El usuario puede enviar la recomendacion al formulario de reserva.</li>
+        </ol>
+        <p>Modelos requeridos:</p>
+        <pre>tiny_face_detector_model-weights_manifest.json
+tiny_face_detector_model-shard1
+face_landmark_68_model-weights_manifest.json
+face_landmark_68_model-shard1</pre>
+
+        <h2>20. Estados del Sistema</h2>
+        <table>
+          <thead>
+            <tr><th>Categoria</th><th>Estados</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Reserva</td><td>pending, confirmed, completed, cancelled, no_show</td></tr>
+            <tr><td>Pago</td><td>pending_review, verified, rejected</td></tr>
+            <tr><td>Horarios</td><td>09:00, 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00, 18:00</td></tr>
+          </tbody>
+        </table>
+
+        <h2>21. Mantenimiento</h2>
+        <h3>22.1 Respaldo de base de datos</h3>
+        <pre>cd barber/server
+node scripts/backup.js</pre>
+
+        <h3>22.2 Respaldo de archivos publicos</h3>
+        <pre>barber/public/gallery/
+barber/public/barbers/
+barber/public/payments/
+barber/server/*.db</pre>
+
+        <h3>22.3 Limpieza de archivos</h3>
+        <p>Cuando se eliminan imagenes desde la interfaz administrativa, el backend intenta eliminar tambien el archivo fisico asociado. Se recomienda revisar ocasionalmente las carpetas publicas para detectar archivos no usados.</p>
+
+        <h2>22. Pruebas Tecnicas</h2>
+        <h3>23.1 Compilacion frontend</h3>
+        <pre>cd barber
+npm.cmd run build</pre>
+        <h3>23.2 Verificacion backend</h3>
+        <pre>GET http://localhost:3000/api/health</pre>
+        <h3>23.3 Flujo minimo recomendado</h3>
+        <ol>
+          <li>Iniciar backend.</li>
+          <li>Iniciar frontend.</li>
+          <li>Consultar servicios.</li>
+          <li>Consultar barberos.</li>
+          <li>Crear una reserva.</li>
+          <li>Ingresar como administrador.</li>
+          <li>Confirmar la reserva.</li>
+          <li>Ingresar como barbero.</li>
+          <li>Verificar que la reserva aparezca en su agenda.</li>
+        </ol>
+
+        <h2>23. Solucion de Problemas</h2>
+        <h3>24.1 El frontend no inicia</h3>
+        <p>Posibles causas: dependencias no instaladas, puerto ocupado o error en configuracion de Vite.</p>
+        <pre>cd barber
+npm.cmd install
+npm.cmd run dev</pre>
+
+        <h3>24.2 El backend no inicia</h3>
+        <p>Posibles causas: dependencias faltantes, puerto 3000 ocupado, error en variables de entorno o permisos en carpetas de subida.</p>
+        <pre>cd barber/server
+npm.cmd install
+npm.cmd start</pre>
+
+        <h3>24.3 Error de CORS</h3>
+        <p>Actualizar <code>CORS_ORIGINS</code> en el archivo <code>.env</code> del backend.</p>
+        <pre>CORS_ORIGINS=http://localhost:5173,http://localhost</pre>
+
+        <h3>24.4 Error al usar el asistente IA</h3>
+        <p>Verificar <code>GITHUB_TOKEN</code>, confirmar que el token sea valido, revisar conexion a internet y revisar la variable <code>AI_MODEL</code>.</p>
+
+        <h3>24.5 Error al subir imagenes</h3>
+        <p>Usar imagen JPG, PNG o WebP; reducir el peso del archivo; verificar carpetas <code>gallery</code>, <code>barbers</code> y <code>payments</code>; reiniciar backend.</p>
+
+        <h3>24.6 No se cargan modelos del analizador facial</h3>
+        <p>Verificar que existan los archivos del modelo en <code>public/models</code>, confirmar que el frontend este sirviendo la carpeta <code>public</code> y recargar la pagina.</p>
+
+        <h2>24. Despliegue</h2>
+        <h3>24.1 Render</h3>
+        <p>El archivo <code>render.yaml</code> contiene configuracion base para preparar despliegue en Render.</p>
+        <ul>
+          <li>Configurar variables de entorno seguras.</li>
+          <li>Revisar origenes CORS.</li>
+          <li>Cambiar secretos de desarrollo.</li>
+          <li>Verificar rutas de archivos persistentes.</li>
+          <li>Configurar respaldos.</li>
+          <li>Usar HTTPS.</li>
+        </ul>
+
+        <h2>25. Recomendaciones Tecnicas</h2>
+        <ul>
+          <li>Usar <code>JWT_SECRET</code> seguro en produccion.</li>
+          <li>No compartir tokens de IA.</li>
+          <li>Mantener dependencias actualizadas.</li>
+          <li>Realizar respaldos periodicos de base de datos y archivos.</li>
+          <li>No eliminar manualmente archivos relacionados con reservas sin revisar la base de datos.</li>
+          <li>Migrar a PostgreSQL si el sistema crece en volumen.</li>
+          <li>Agregar logs estructurados para produccion.</li>
+          <li>Implementar monitoreo y alertas si se despliega publicamente.</li>
+        </ul>
+
+        <h2>26. Glosario Tecnico</h2>
+        <table>
+          <tbody>
+            <tr><th>API REST</th><td>Interfaz HTTP para comunicacion entre frontend y backend.</td></tr>
+            <tr><th>JWT</th><td>Token usado para autenticar sesiones.</td></tr>
+            <tr><th>SQLite</th><td>Motor de base de datos local basado en archivo.</td></tr>
+            <tr><th>Middleware</th><td>Funcion intermedia que procesa solicitudes en Express.</td></tr>
+            <tr><th>CORS</th><td>Politica que controla que origenes pueden consumir la API.</td></tr>
+            <tr><th>Hash</th><td>Transformacion segura de contrasenas.</td></tr>
+            <tr><th>Nginx</th><td>Servidor web usado para servir frontend y redirigir trafico.</td></tr>
+            <tr><th>Vite</th><td>Herramienta de desarrollo y compilacion frontend.</td></tr>
+            <tr><th>Multer</th><td>Libreria para recibir archivos en Express.</td></tr>
+          </tbody>
+        </table>
+
+        <h2>27. Conclusiones</h2>
+        <p>Infinity Barber cuenta con una estructura tecnica clara y modular que facilita su instalacion, ejecucion y mantenimiento. La separacion entre frontend, backend, base de datos y archivos publicos permite comprender el sistema por capas y realizar ajustes sin afectar toda la aplicacion.</p>
+        <p>El sistema integra funciones modernas como autenticacion por roles, carga de archivos, gestion administrativa, asistencia con IA y analisis facial local, lo que lo convierte en una base solida para futuras mejoras, despliegue en produccion y ampliacion funcional.</p>
+
+        <h2>28. Anexos</h2>
+        <h3>28.1 Comandos principales</h3>
+        <pre>npm.cmd install
+npm.cmd start
+cd barber
+npm.cmd run dev
+npm.cmd run build
+cd server
+npm.cmd start</pre>
+
+        <h3>28.2 Rutas principales del frontend</h3>
+        <pre>/                 Pagina principal
+/servicios        Servicios
+/equipo           Equipo
+/galeria          Galeria
+/reserva          Reservas
+/ia-barber        Analizador facial
+/admin/login      Login administrador
+/admin            Panel administrador
+/barber/login     Login barbero
+/barber           Panel barbero</pre>
+
+        <h3>28.3 Endpoint de salud</h3>
+        <pre>GET /api/health</pre>
+
+        <h3>28.4 Archivos criticos</h3>
+        <pre>barber/server/index.js
+barber/server/database.js
+barber/server/auth.js
+barber/src/app/routes.ts
+barber/src/app/lib/api.ts
+barber/src/app/components/AdminPanel.tsx
+barber/src/app/components/BookingPage.tsx
+barber/src/app/components/AIAssistant.tsx
+barber/src/app/components/FaceAnalyzer.tsx</pre>
+      </main>
+
+      <footer class="footer">
+        <p><strong>Infinity Barber</strong> - Manual tecnico generado para documentacion del proyecto formativo SENA.</p>
+      </footer>
+    </article>
+  </div>
+</body>
+</html>

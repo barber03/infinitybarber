@@ -1,0 +1,250 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+@keyframes admin-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes admin-orb-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(14px, -10px) scale(1.12);
+  }
+}
+
+@keyframes admin-light-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+@keyframes admin-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+.admin-metric-glow {
+  position: relative;
+}
+
+.admin-metric-glow::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 12%;
+  right: 12%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--admin-glow, #8b5cf6), transparent);
+  box-shadow: 0 0 18px var(--admin-glow, #8b5cf6), 0 0 36px color-mix(in srgb, var(--admin-glow, #8b5cf6) 45%, transparent);
+  animation: admin-glow-pulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.admin-panel-glow::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.9), rgba(6, 182, 212, 0.7), transparent);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.55), 0 4px 32px rgba(6, 182, 212, 0.25);
+  animation: admin-glow-pulse 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.admin-hero-orb {
+  animation: admin-orb-float 6s ease-in-out infinite;
+}
+
+.admin-hero-orb-delay {
+  animation: admin-orb-float 7.5s ease-in-out infinite reverse;
+}
+
+.admin-light-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-light-sweep::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: admin-light-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: hsl(var(--foreground));
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--input-background)) inset;
+  box-shadow: 0 0 0 1000px hsl(var(--input-background)) inset;
+  caret-color: hsl(var(--foreground));
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Custom Interactive Alive Buttons and Micro-animations */
+@keyframes float-alive {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulse-shadow-primary {
+  0%, 100% {
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 20px -6px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 20px 35px -3px rgba(99, 102, 241, 0.65), 0 12px 28px -4px rgba(139, 92, 246, 0.55);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.btn-alive-primary {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1) !important;
+  animation: pulse-shadow-primary 3s infinite ease-in-out, float-alive 4s infinite ease-in-out;
+}
+
+.btn-alive-primary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+
+.btn-alive-primary:hover {
+  transform: translateY(-7px) scale(1.04) !important;
+  box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.8), 0 15px 35px -8px rgba(139, 92, 246, 0.7) !important;
+}
+
+.btn-alive-primary:hover::before {
+  left: 100%;
+}
+
+.btn-alive-secondary {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1) !important;
+  animation: float-alive 4s infinite ease-in-out 1.5s;
+}
+
+.btn-alive-secondary:hover {
+  transform: translateY(-7px) scale(1.04) !important;
+  border-color: rgba(139, 92, 246, 0.6) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 30px -10px rgba(139, 92, 246, 0.35) !important;
+}
+
+.btn-alive-secondary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.15), transparent);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+
+.btn-alive-secondary:hover::before {
+  left: 100%;
+}
+
+/* Floating animation for Login Card Forms */
+@keyframes float-login-card {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+  75% {
+    transform: translateY(8px) rotate(-0.4deg);
+  }
+}
+
+.login-card-float {
+  animation: float-login-card 10s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
