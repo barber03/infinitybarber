@@ -14,7 +14,10 @@ if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process
 module.exports = {
   port: Number(process.env.PORT || 3000),
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
-  corsOrigins: toList(process.env.CORS_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173"),
+  corsOrigins: toList(
+    process.env.CORS_ORIGINS ||
+      (process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173,http://127.0.0.1:5173")
+  ),
   adminUsername: process.env.ADMIN_USERNAME || "admin",
   adminPassword: process.env.ADMIN_PASSWORD || "1234",
   defaultBarberPassword: process.env.DEFAULT_BARBER_PASSWORD || "1234",

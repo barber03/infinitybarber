@@ -240,7 +240,7 @@ const appointmentSelect = `
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || config.corsOrigins.length === 0 || config.corsOrigins.includes(origin)) {
+      if (!origin || config.corsOrigins.length === 0 || config.corsOrigins.includes(origin) || config.corsOrigins.includes("*")) {
         callback(null, true);
         return;
       }
