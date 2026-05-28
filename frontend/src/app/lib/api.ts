@@ -3,7 +3,7 @@ import { getClientSession, clearClientSession } from "./clientStorage";
 
 const getDefaultApiBaseUrl = () => {
   if (typeof window === "undefined") {
-    return "http://localhost:3000";
+    return "https://infinitybarber-phi.vercel.app";
   }
 
   // En desarrollo usamos el mismo origen (Vite) y el proxy redirige al backend.
@@ -11,7 +11,7 @@ const getDefaultApiBaseUrl = () => {
     return window.location.origin;
   }
 
-  return window.location.origin;
+  return "https://infinitybarber-phi.vercel.app";
 };
 
 export const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL || getDefaultApiBaseUrl()).replace(/\/$/, "");
