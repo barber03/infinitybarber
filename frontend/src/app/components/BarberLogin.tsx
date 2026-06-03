@@ -33,7 +33,7 @@ export function BarberLogin() {
     let active = true;
     apiFetch<BarberProfile[]>("/api/barbers")
       .then((data) => {
-        if (active) setBarbers(data);
+        if (active && Array.isArray(data)) setBarbers(data);
       })
       .catch(() => {
         if (active) toast.error("No se pudo cargar el equipo.");

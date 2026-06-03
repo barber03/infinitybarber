@@ -108,6 +108,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retries 
       try {
         data = JSON.parse(text) as JsonValue;
       } catch {
+        if (text.trim().startsWith("<")) {
+          throw new Error("El servidor devolvió una página HTML en lugar de JSON. Esto suele indicar un error en la ruta o que VITE_API_URL no está configurado correctamente en producción.");
+        }
         data = text;
       }
     }
