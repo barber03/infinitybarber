@@ -11,7 +11,7 @@ const getDefaultApiBaseUrl = () => {
     return window.location.origin;
   }
 
-  return window.location.origin;
+  return "https://infinitybarber-phi.vercel.app";
 };
 
 export const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL || getDefaultApiBaseUrl()).replace(/\/$/, "");
