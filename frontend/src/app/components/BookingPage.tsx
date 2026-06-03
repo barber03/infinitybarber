@@ -106,7 +106,7 @@ export function BookingPage() {
   }, []);
 
   const location = useLocation();
-  const aiServiceFromState = location.state?.aiService;
+  const aiServiceFromState = location.state?.aiService || localStorage.getItem("ai_recommendation_service");
 
   useEffect(() => {
     if (aiServiceFromState && services.length > 0) {
@@ -164,6 +164,8 @@ export function BookingPage() {
     setPaymentScreenshot("");
     setBookedTimes([]);
     setAvailableTimes(DEFAULT_TIMES);
+    localStorage.removeItem("ai_recommendation_service");
+    localStorage.removeItem("ai_recommendation_shape");
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,6 +246,8 @@ export function BookingPage() {
         service_price: selectedService?.price,
       });
       toast.success("Reserva registrada. Queda pendiente de verificacion de pago.");
+      localStorage.removeItem("ai_recommendation_service");
+      localStorage.removeItem("ai_recommendation_shape");
       resetForm();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo crear la reserva.");

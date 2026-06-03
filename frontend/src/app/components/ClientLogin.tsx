@@ -49,7 +49,11 @@ export function ClientLogin() {
 
       setClientSession(data);
       toast.success(mode === "login" ? "¡Bienvenido de vuelta!" : "¡Cuenta creada! Bienvenido.");
-      navigate("/mi-cuenta");
+      if (localStorage.getItem("ai_recommendation_service")) {
+        navigate("/reserva");
+      } else {
+        navigate("/mi-cuenta");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al procesar la solicitud");
     } finally {

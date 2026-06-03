@@ -1,10 +1,4 @@
 import { createBrowserRouter, redirect } from "react-router";
-import { AdminLogin } from "./components/AdminLogin";
-import { AdminPanel } from "./components/AdminPanel";
-import { BarberLogin } from "./components/BarberLogin";
-import { BarberPanel } from "./components/BarberPanel";
-import { ClientLogin } from "./components/ClientLogin";
-import { ClientPanel } from "./components/ClientPanel";
 import {
   adminLoginLoader,
   adminPanelLoader,
@@ -13,15 +7,9 @@ import {
   clientLoginLoader,
   clientPanelLoader,
 } from "./lib/authLoaders";
-import { BookingPage } from "./components/BookingPage";
-import FaceAnalyzer from "./components/FaceAnalyzer";
 import { PublicLayout } from "./pages/PublicLayout";
 import { HomePage } from "./pages/HomePage";
-import { ServicesPage } from "./pages/ServicesPage";
-import { TeamPage } from "./pages/TeamPage";
-import { GalleryPage } from "./pages/GalleryPage";
 import { getClientSession } from "./lib/clientStorage";
-
 
 export const router = createBrowserRouter([
   {
@@ -29,53 +17,65 @@ export const router = createBrowserRouter([
     Component: PublicLayout,
     children: [
       { index: true, Component: HomePage },
-      { path: "servicios", Component: ServicesPage },
-      { path: "equipo", Component: TeamPage },
-      { path: "galeria", Component: GalleryPage },
+      {
+        path: "servicios",
+        lazy: () => import("./pages/ServicesPage").then((m) => ({ Component: m.ServicesPage })),
+      },
+      {
+        path: "equipo",
+        lazy: () => import("./pages/TeamPage").then((m) => ({ Component: m.TeamPage })),
+      },
+      {
+        path: "galeria",
+        lazy: () => import("./pages/GalleryPage").then((m) => ({ Component: m.GalleryPage })),
+      },
       {
         path: "reserva",
         loader: () => {
           if (!getClientSession()) throw redirect("/mi-cuenta/login");
           return null;
         },
-        Component: BookingPage,
+        lazy: () => import("./components/BookingPage").then((m) => ({ Component: m.BookingPage })),
       },
-      { path: "ia-barber", Component: FaceAnalyzer },
-
+      {
+        path: "ia-barber",
+        lazy: () => import("./components/FaceAnalyzer").then((m) => ({ Component: m.default })),
+      },
     ],
   },
   {
     path: "/admin/login",
     loader: adminLoginLoader,
-    Component: AdminLogin,
+    lazy: () => import("./components/AdminLogin").then((m) => ({ Component: m.AdminLogin })),
   },
   {
     path: "/admin",
     loader: adminPanelLoader,
-    Component: AdminPanel,
+    lazy: () => import("./components/AdminPanel").then((m) => ({ Component: m.AdminPanel })),
   },
   {
     path: "/barber/login",
     loader: barberLoginLoader,
-    Component: BarberLogin,
+    lazy: () => import("./components/BarberLogin").then((m) => ({ Component: m.BarberLogin })),
   },
   {
     path: "/barber",
     loader: barberPanelLoader,
-    Component: BarberPanel,
+    lazy: () => import("./components/BarberPanel").then((m) => ({ Component: m.BarberPanel })),
   },
   {
     path: "/mi-cuenta/login",
     loader: clientLoginLoader,
-    Component: ClientLogin,
+    lazy: () => import("./components/ClientLogin").then((m) => ({ Component: m.ClientLogin })),
   },
   {
     path: "/mi-cuenta",
     loader: clientPanelLoader,
-    Component: ClientPanel,
+    lazy: () => import("./components/ClientPanel").then((m) => ({ Component: m.ClientPanel })),
   },
   {
     path: "*",
     loader: () => redirect("/"),
   },
 ]);
+

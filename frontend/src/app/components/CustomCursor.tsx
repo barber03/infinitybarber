@@ -138,10 +138,15 @@ export function CustomCursor() {
           continue;
         }
 
-        // Estilo de partículas: brillo circular difuminado
+        // Estilo de partículas: brillo circular difuminado sin usar shadowBlur (que degrada el rendimiento)
+        // Dibujamos un halo exterior traslúcido para el efecto de brillo/glow
+        ctx.fillStyle = `${p.color}${p.alpha * 0.25})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dibujamos el núcleo brillante central
         ctx.fillStyle = `${p.color}${p.alpha})`;
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = p.color.includes("255") ? "rgba(255,255,255,0.5)" : "rgba(139,92,246,0.5)";
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();

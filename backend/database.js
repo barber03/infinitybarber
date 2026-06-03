@@ -34,10 +34,41 @@ function convertQuery(sql) {
   return sql.replace(/\?/g, () => `$${i++}`);
 }
 
+function coerceParams(sql, params) {
+  if (!params || !params.length) return params;
+  const regex = /(?:^|\s|\()([a-zA-Z0-9_]*id)\s*(?:=|!=|<|>|<=|>=)\s*\$(\d+)/gi;
+  let match;
+  const idIndices = new Set();
+  
+  while ((match = regex.exec(sql)) !== null) {
+    const idx = parseInt(match[2], 10) - 1;
+    if (idx >= 0 && idx < params.length) {
+      idIndices.add(idx);
+    }
+  }
+  
+  const castRegex = /([a-zA-Z0-9_]*id)\s*(?:=|!=|<|>|<=|>=)\s*CAST\(\s*\$(\d+)/gi;
+  while ((match = castRegex.exec(sql)) !== null) {
+    const idx = parseInt(match[2], 10) - 1;
+    if (idx >= 0 && idx < params.length) {
+      idIndices.add(idx);
+    }
+  }
+  
+  return params.map((param, index) => {
+    if (idIndices.has(index) && typeof param === 'string' && /^\d+$/.test(param)) {
+      return Number(param);
+    }
+    return param;
+  });
+}
+
 const db = {
   pool,
   queryAsync: (sql, params = []) => {
-    return pool.query(convertQuery(sql), params);
+    const queryToRun = convertQuery(sql);
+    const coercedParams = coerceParams(queryToRun, params);
+    return pool.query(queryToRun, coercedParams);
   },
   run: function(sql, params, cb) {
     if (typeof params === 'function') { cb = params; params = []; }
@@ -46,7 +77,8 @@ const db = {
     if (sqlUpper.startsWith('INSERT ') && !sqlUpper.includes('RETURNING')) {
       queryToRun += ' RETURNING id';
     }
-    pool.query(queryToRun, params || [])
+    const coercedParams = coerceParams(queryToRun, params);
+    pool.query(queryToRun, coercedParams || [])
       .then(res => {
         const context = {
           changes: res.rowCount || 0,
@@ -60,7 +92,9 @@ const db = {
   },
   get: function(sql, params, cb) {
     if (typeof params === 'function') { cb = params; params = []; }
-    pool.query(convertQuery(sql), params || [])
+    const queryToRun = convertQuery(sql);
+    const coercedParams = coerceParams(queryToRun, params);
+    pool.query(queryToRun, coercedParams || [])
       .then(res => {
         if (cb) cb(null, res.rows.length > 0 ? res.rows[0] : null);
       })
@@ -70,7 +104,9 @@ const db = {
   },
   all: function(sql, params, cb) {
     if (typeof params === 'function') { cb = params; params = []; }
-    pool.query(convertQuery(sql), params || [])
+    const queryToRun = convertQuery(sql);
+    const coercedParams = coerceParams(queryToRun, params);
+    pool.query(queryToRun, coercedParams || [])
       .then(res => {
         if (cb) cb(null, res.rows);
       })

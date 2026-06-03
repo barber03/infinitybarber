@@ -36,11 +36,19 @@ const isProduction = process.env.NODE_ENV === "production";
 const isLocalRequest = (req) =>
   ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.ip) ||
   ["localhost", "127.0.0.1"].includes(req.hostname);
-const { createClient } = require("@supabase/supabase-js");
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const supabaseUrl = process.env.SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.SUPABASE_KEY || "placeholder";
-const supabase = createClient(supabaseUrl, supabaseKey);
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "infinity-barber-uploads";
+
+const s3Client = new S3Client({
+  endpoint: process.env.S3_ENDPOINT || "https://vonaqlvfucocpobigxuk.storage.supabase.co/storage/v1/s3",
+  region: process.env.S3_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || "b6b9f8f207d879aefccad7a568dd59ce",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "7a93201c42f41ab4b40ccbe76a5ccabb00c71fb0bbc024a13540e3f22c391b80",
+  },
+  forcePathStyle: true,
+});
 
 const allowedStatuses = ["pending", "confirmed", "completed", "cancelled", "no_show"];
 const allowedPaymentStatuses = ["pending_review", "verified", "rejected"];
@@ -99,15 +107,21 @@ const uploadToSupabase = (folder, fallbackName) => {
       const filename = `${Date.now()}-${safeBaseName}${extension.toLowerCase()}`;
       const filePath = `${folder}/${filename}`;
 
-      const { data, error } = await supabase.storage
-        .from(SUPABASE_BUCKET)
-        .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype,
-          upsert: false
-        });
+      try {
+        const uploadParams = {
+          Bucket: SUPABASE_BUCKET,
+          Key: filePath,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype,
+        };
+        await s3Client.send(new PutObjectCommand(uploadParams));
 
-      if (error) {
-        console.warn("Supabase upload failed, falling back to local storage:", error.message || error);
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/${SUPABASE_BUCKET}/${filePath}`;
+        req.file.filename = filename;
+        req.file.supabaseUrl = publicUrl;
+        next();
+      } catch (error) {
+        console.warn("S3 upload failed, falling back to local storage:", error.message || error);
         try {
           const localFolder = path.join(frontendPublicPath, folder);
           if (!fs.existsSync(localFolder)) {
@@ -124,12 +138,6 @@ const uploadToSupabase = (folder, fallbackName) => {
           return res.status(500).json({ error: "Failed to upload image" });
         }
       }
-
-      const { data: publicUrlData } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
-      
-      req.file.filename = filename;
-      req.file.supabaseUrl = publicUrlData.publicUrl;
-      next();
     });
   };
 };
@@ -160,10 +168,14 @@ const deleteManagedFile = async (url) => {
     const urlParts = url.split(`/${SUPABASE_BUCKET}/`);
     if (urlParts.length === 2) {
       const filePath = urlParts[1];
-      await supabase.storage.from(SUPABASE_BUCKET).remove([filePath]);
+      const deleteParams = {
+        Bucket: SUPABASE_BUCKET,
+        Key: filePath,
+      };
+      await s3Client.send(new DeleteObjectCommand(deleteParams));
     }
   } catch (error) {
-    console.error("Failed to delete file from Supabase", error);
+    console.error("Failed to delete file from S3", error);
   }
 };
 
@@ -240,7 +252,7 @@ const appointmentSelect = `
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || config.corsOrigins.length === 0 || config.corsOrigins.includes(origin) || config.corsOrigins.includes("*")) {
+      if (!origin || config.corsOrigins.length === 0 || config.corsOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -255,6 +267,12 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api", apiLimiter);
 // Local directories serve as static fallbacks from frontend/public for historical data
 const frontendPublicPath = path.join(__dirname, "../frontend/public");
+const galleryUploadDir = path.join(frontendPublicPath, "gallery");
+const barberUploadDir = path.join(frontendPublicPath, "barbers");
+const clientsUploadDir = path.join(frontendPublicPath, "clients");
+const barberPortfolioUploadDir = path.join(frontendPublicPath, "barber-portfolio");
+const servicesUploadDir = path.join(frontendPublicPath, "services");
+
 app.use("/gallery", express.static(path.join(frontendPublicPath, "gallery")));
 app.use("/barbers", express.static(path.join(frontendPublicPath, "barbers")));
 app.use("/clients", express.static(path.join(frontendPublicPath, "clients")));
@@ -818,9 +836,10 @@ app.post("/api/barber/time-off", authenticate, requireRole("barber"), (req, res)
 });
 
 app.delete("/api/barber/time-off/:id", authenticate, requireRole("barber"), (req, res) => {
+  const id = Number(req.params.id);
   db.run(
     "DELETE FROM barber_time_off WHERE id = ? AND barber_id = ?",
-    [req.params.id, req.auth.sub],
+    [id, req.auth.sub],
     function deleteTimeOff(error) {
       if (error) return sendDbError(res, error);
       if (this.changes === 0) {
@@ -872,9 +891,10 @@ app.post(
 );
 
 app.delete("/api/barber/portfolio/:id", authenticate, requireRole("barber"), (req, res) => {
+  const id = Number(req.params.id);
   db.get(
     "SELECT url FROM barber_portfolio WHERE id = ? AND barber_id = ?",
-    [req.params.id, req.auth.sub],
+    [id, req.auth.sub],
     (selectError, item) => {
       if (selectError) return sendDbError(res, selectError);
       if (!item) {
@@ -882,7 +902,7 @@ app.delete("/api/barber/portfolio/:id", authenticate, requireRole("barber"), (re
         return;
       }
 
-      db.run("DELETE FROM barber_portfolio WHERE id = ? AND barber_id = ?", [req.params.id, req.auth.sub], function remove(error) {
+      db.run("DELETE FROM barber_portfolio WHERE id = ? AND barber_id = ?", [id, req.auth.sub], function remove(error) {
         if (error) return sendDbError(res, error);
         deleteManagedFile(item.url, "/barber-portfolio/", barberPortfolioUploadDir);
         res.json({ message: "Deleted" });
@@ -1065,14 +1085,15 @@ app.put("/api/admin/clients/:id", authenticate, requireRole("admin"), (req, res)
 });
 
 app.delete("/api/admin/clients/:id", authenticate, requireRole("admin"), (req, res) => {
-  db.get("SELECT avatar_url FROM clients WHERE id = ?", [req.params.id], (selectError, client) => {
+  const id = Number(req.params.id);
+  db.get("SELECT avatar_url FROM clients WHERE id = ?", [id], (selectError, client) => {
     if (selectError) return sendDbError(res, selectError);
     if (!client) {
       res.status(404).json({ error: "Client not found" });
       return;
     }
 
-    db.run("DELETE FROM clients WHERE id = ?", [req.params.id], function deleteClient(error) {
+    db.run("DELETE FROM clients WHERE id = ?", [id], function deleteClient(error) {
       if (error) return sendDbError(res, error);
       deleteManagedFile(client.avatar_url, "/clients/", clientsUploadDir);
       res.json({ message: "Deleted" });
@@ -1170,7 +1191,8 @@ app.put("/api/admin/services/:id", authenticate, requireRole("admin"), (req, res
 });
 
 app.delete("/api/admin/services/:id", authenticate, requireRole("admin"), (req, res) => {
-  db.get("SELECT COUNT(*) AS count FROM appointments WHERE service_id = ?", [req.params.id], (referenceError, row) => {
+  const id = Number(req.params.id);
+  db.get("SELECT COUNT(*) AS count FROM appointments WHERE service_id = ?", [id], (referenceError, row) => {
     if (referenceError) return sendDbError(res, referenceError);
     if (row.count > 0) {
       res.status(409).json({ error: "This service already has related appointments" });
@@ -1178,7 +1200,7 @@ app.delete("/api/admin/services/:id", authenticate, requireRole("admin"), (req, 
     }
 
     // Get the image_url first
-    db.get("SELECT image_url FROM services WHERE id = ?", [req.params.id], (selectError, serviceRow) => {
+    db.get("SELECT image_url FROM services WHERE id = ?", [id], (selectError, serviceRow) => {
       if (selectError) return sendDbError(res, selectError);
       if (!serviceRow) {
         res.status(404).json({ error: "Service not found" });
@@ -1187,7 +1209,7 @@ app.delete("/api/admin/services/:id", authenticate, requireRole("admin"), (req, 
 
       const imageUrl = serviceRow.image_url;
 
-      db.run("DELETE FROM services WHERE id = ?", [req.params.id], function deleteService(error) {
+      db.run("DELETE FROM services WHERE id = ?", [id], function deleteService(error) {
         if (error) return sendDbError(res, error);
         if (this.changes === 0) {
           res.status(404).json({ error: "Service not found" });
@@ -1326,14 +1348,15 @@ app.delete("/api/admin/barbers/:id", authenticate, requireRole("admin"), (req, r
 });
 
 app.delete("/api/admin/gallery/:id", authenticate, requireRole("admin"), (req, res) => {
-  db.get("SELECT url FROM gallery WHERE id = ?", [req.params.id], (selectError, image) => {
+  const id = Number(req.params.id);
+  db.get("SELECT url FROM gallery WHERE id = ?", [id], (selectError, image) => {
     if (selectError) return sendDbError(res, selectError);
     if (!image) {
       res.status(404).json({ error: "Image not found" });
       return;
     }
 
-    db.run("DELETE FROM gallery WHERE id = ?", [req.params.id], function deleteImage(error) {
+    db.run("DELETE FROM gallery WHERE id = ?", [id], function deleteImage(error) {
       if (error) return sendDbError(res, error);
       deleteManagedFile(image.url, "/gallery/", galleryUploadDir);
       res.json({ message: "Deleted" });
@@ -1512,10 +1535,11 @@ app.patch("/api/admin/appointments/:id/status", authenticate, requireRole("admin
 });
 
 app.delete("/api/admin/appointments/:id", authenticate, requireRole("admin"), (req, res) => {
-  db.run("DELETE FROM appointment_change_requests WHERE appointment_id = ?", [req.params.id], (err) => {
+  const id = Number(req.params.id);
+  db.run("DELETE FROM appointment_change_requests WHERE appointment_id = ?", [id], (err) => {
     if (err) return sendDbError(res, err);
 
-    db.run("DELETE FROM appointments WHERE id = ?", [req.params.id], function deleteAppointment(error) {
+    db.run("DELETE FROM appointments WHERE id = ?", [id], function deleteAppointment(error) {
       if (error) return sendDbError(res, error);
       if (this.changes === 0) {
         res.status(404).json({ error: "Appointment not found" });

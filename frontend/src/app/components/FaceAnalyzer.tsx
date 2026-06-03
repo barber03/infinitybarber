@@ -1,13 +1,11 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router";
-import * as faceapi from "face-api.js";
 import { Loader2, Camera, RefreshCw, CheckCircle2, AlertCircle, Scissors, Sparkles, UploadCloud } from "lucide-react";
 import { cn } from "./ui/utils";
 import axios from "axios";
 import { resolveApiUrl } from "../lib/api";
-
-const MODEL_URL = "/models";
+import { toast } from "sonner";
 
 interface AnalysisResult {
   faceShape: string;
@@ -18,10 +16,8 @@ interface AnalysisResult {
 export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?: (recommendation: string) => void }) {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [modelsLoaded, setModelsLoaded] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,34 +28,10 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // Cargar modelos al montar
-  useEffect(() => {
-    let isMounted = true;
-    const loadModels = async () => {
-      try {
-        console.log("Cargando modelos desde:", MODEL_URL);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        
-        if (isMounted) {
-          console.log("Modelos cargados exitosamente");
-          setModelsLoaded(true);
-        }
-      } catch (err) {
-        console.error("Error crítico al cargar modelos de IA:", err);
-        if (isMounted) {
-          setError("Error al cargar motores de IA. Verifica tu conexión o recarga.");
-        }
-      }
-    };
-    loadModels();
-    return () => { isMounted = false; };
-  }, []);
-
   // Captura desde Cámara y Envío al Backend
   const handleCapture = useCallback(async () => {
-    if (!webcamRef.current || !webcamRef.current.video || !modelsLoaded) {
-      console.warn("Intento de captura sin cámara o modelos listos");
+    if (!webcamRef.current || !webcamRef.current.video) {
+      console.warn("Intento de captura sin cámara");
       return;
     }
 
@@ -75,47 +47,22 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
     setResult(null);
 
     try {
-      console.log("Iniciando detección facial...");
-      
-      // 1. Detección local con face-api.js para dibujar landmarks
-      try {
-        const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-          .withFaceLandmarks();
-
-        if (detection && canvasRef.current) {
-          const displaySize = { width: video.videoWidth, height: video.videoHeight };
-          faceapi.matchDimensions(canvasRef.current, displaySize);
-          const resizedDetections = faceapi.resizeResults(detection, displaySize);
-          
-          const ctx = canvasRef.current.getContext("2d");
-          if (ctx) {
-              ctx.clearRect(0, 0, displaySize.width, displaySize.height);
-              faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-          }
-        }
-      } catch (localErr) {
-        console.warn("Detección local de landmarks no disponible o sin rostro detectado:", localErr);
-      }
-
-      // 2. Capturar captura de pantalla de la cámara
+      console.log("Capturando imagen de cámara...");
       const imageSrc = webcamRef.current.getScreenshot();
       if (!imageSrc) {
         throw new Error("No se pudo capturar la imagen de la cámara.");
       }
 
+      // Convertir a archivo binario
       const responseBlob = await fetch(imageSrc);
       const blob = await responseBlob.blob();
       const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
 
-      // 3. Enviar al backend para el análisis oficial
       const formData = new FormData();
       formData.append("image", file);
 
       const url = resolveApiUrl("/api/detectar-rostro");
-      const apiRes = await axios.post(url, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      const apiRes = await axios.post(url, formData);
 
       if (apiRes.data.success) {
         setResult({
@@ -123,6 +70,7 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
           recommendation: apiRes.data.recommendation,
           description: apiRes.data.description
         });
+        toast.success(`¡Recomendación IA: ${apiRes.data.recommendation}!`);
       } else {
         throw new Error(apiRes.data.error || "Hubo un problema al analizar el rostro en el servidor.");
       }
@@ -132,7 +80,7 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
     } finally {
       setIsAnalyzing(false);
     }
-  }, [modelsLoaded]);
+  }, []);
 
   // Subida de Archivo y Envío al Backend
   const handleUploadAndAnalyze = async () => {
@@ -143,13 +91,15 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
     setResult(null);
 
     try {
+      const previewUrlStr = URL.createObjectURL(selectedFile);
+      setPreviewUrl(previewUrlStr);
+
+      // Enviar al backend
       const formData = new FormData();
       formData.append("image", selectedFile);
 
       const url = resolveApiUrl("/api/detectar-rostro");
-      const apiRes = await axios.post(url, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      const apiRes = await axios.post(url, formData);
 
       if (apiRes.data.success) {
         setResult({
@@ -157,6 +107,7 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
           recommendation: apiRes.data.recommendation,
           description: apiRes.data.description
         });
+        toast.success(`¡Recomendación IA: ${apiRes.data.recommendation}!`);
       } else {
         throw new Error(apiRes.data.error || "Hubo un problema al analizar la imagen en el servidor.");
       }
@@ -174,10 +125,29 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsCameraReady(false);
-    if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
+  };
+
+  // Render del contenedor de la foto subida
+  const renderImageContainer = () => {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] bg-zinc-900 border border-white/10">
+        <img
+          src={previewUrl || ""}
+          alt="Preview"
+          className="h-full w-full object-cover"
+        />
+
+        {/* Overlay de Carga del Servidor */}
+        {isAnalyzing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[2px] z-40">
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/75 p-6 shadow-2xl border border-white/5">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="font-bold text-white uppercase tracking-widest text-xs">Analizando facciones...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -224,41 +194,30 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
         {/* Lado de Captura / Input */}
         <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-black/40 p-2 shadow-2xl backdrop-blur-xl">
           
-          {/* Vista Cámara en Vivo */}
+          {/* Vista Cámara en Vivo (Siempre en funcionamiento) */}
           {activeTab === "camera" && (
-            <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] bg-zinc-900">
-              {!modelsLoaded ? (
-                <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-white/40">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="font-medium">Cargando motores de IA...</p>
-                </div>
-              ) : (
-                <>
-                  <Webcam
-                    ref={webcamRef}
-                    audio={false}
-                    screenshotFormat="image/jpeg"
-                    onUserMedia={() => setIsCameraReady(true)}
-                    className="h-full w-full object-cover"
-                    videoConstraints={{ facingMode: "user" }}
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className="absolute left-0 top-0 h-full w-full pointer-events-none"
-                  />
-                  {!isCameraReady && (
-                     <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 text-white/60">
-                        <p>Solicitando acceso a cámara...</p>
-                     </div>
-                  )}
-                </>
+            <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] bg-zinc-900 border border-white/10">
+              <Webcam
+                ref={webcamRef}
+                audio={false}
+                screenshotFormat="image/jpeg"
+                onUserMedia={() => setIsCameraReady(true)}
+                className="h-full w-full object-cover"
+                videoConstraints={{ facingMode: "user" }}
+                mirrored={true}
+              />
+              {!isCameraReady && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 text-white/60">
+                    <p>Solicitando acceso a cámara...</p>
+                 </div>
               )}
 
+              {/* Overlay de Carga del Servidor (Sin pausar el video detrás) */}
               {isAnalyzing && (
-                <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-sm">
-                  <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/60 p-6 shadow-2xl">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[2px] z-40">
+                  <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/75 p-6 shadow-2xl border border-white/5 animate-in zoom-in-95 duration-200">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="font-bold text-white uppercase tracking-widest text-xs">Analizando facciones</p>
+                    <p className="font-bold text-white uppercase tracking-widest text-xs">Analizando facciones...</p>
                   </div>
                 </div>
               )}
@@ -297,75 +256,64 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
                       const file = e.target.files?.[0];
                       if (file) {
                         setSelectedFile(file);
-                        setPreviewUrl(URL.createObjectURL(file));
+                        const url = URL.createObjectURL(file);
+                        setPreviewUrl(url);
+                        setError(null);
                       }
                     }}
                   />
                 </div>
               ) : (
-                <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] bg-zinc-900 border border-white/10">
-                  <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
-                  {isAnalyzing && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-sm">
-                      <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/60 p-6 shadow-2xl">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="font-bold text-white uppercase tracking-widest text-xs">Analizando imagen...</p>
-                      </div>
-                    </div>
-                  )}
-                  {!isAnalyzing && (
-                    <button
-                      onClick={() => { setSelectedFile(null); setPreviewUrl(null); setResult(null); }}
-                      className="absolute right-4 top-4 rounded-xl bg-black/60 px-4 py-2 text-white hover:bg-black/80 transition-all text-xs font-bold cursor-pointer"
-                    >
-                      Cambiar Foto
-                    </button>
-                  )}
-                </div>
+                renderImageContainer()
               )}
             </div>
           )}
 
-          {/* Botones de acción */}
-          <div className="mt-6 flex flex-wrap gap-4 p-4">
-             {result ? (
-               <button
-                  onClick={resetAnalysis}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white/10 py-4 font-bold text-white transition-all hover:bg-white/20 cursor-pointer"
-               >
-                  <RefreshCw className="h-5 w-5" />
-                  NUEVO ANÁLISIS
-               </button>
-             ) : activeTab === "camera" ? (
-               <button
-                  onClick={handleCapture}
-                  disabled={!modelsLoaded || isAnalyzing}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 font-black uppercase tracking-widest transition-all shadow-xl cursor-pointer",
-                    !modelsLoaded || isAnalyzing 
-                      ? "bg-white/5 text-white/20 cursor-not-allowed" 
-                      : "bg-primary text-primary-foreground hover:scale-[1.02] active:scale-[0.98] shadow-primary/30"
-                  )}
-               >
-                  <Camera className="h-6 w-6" />
-                  CAPTURAR Y ANALIZAR
-               </button>
-             ) : (
-               <button
+          {/* Botones de acción del upload */}
+          {activeTab === "upload" && previewUrl && (
+            <div className="mt-6 flex flex-wrap gap-4 p-4">
+              <button
+                type="button"
+                onClick={resetAnalysis}
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/10 py-4 font-bold text-white transition-all hover:bg-white/10 hover:border-white/20 cursor-pointer"
+              >
+                <RefreshCw className="h-5 w-5 text-white/60" />
+                NUEVA FOTO
+              </button>
+
+              {!result && (
+                <button
+                  type="button"
                   onClick={handleUploadAndAnalyze}
-                  disabled={!selectedFile || isAnalyzing}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 font-black uppercase tracking-widest transition-all shadow-xl cursor-pointer",
-                    !selectedFile || isAnalyzing 
-                      ? "bg-white/5 text-white/20 cursor-not-allowed" 
-                      : "bg-primary text-primary-foreground hover:scale-[1.02] active:scale-[0.98] shadow-primary/30"
-                  )}
-               >
-                  <Sparkles className="h-6 w-6" />
+                  disabled={isAnalyzing}
+                  className="flex-1 min-w-[150px] flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground py-4 font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shadow-lg"
+                >
+                  <Sparkles className="h-5 w-5" />
                   ANALIZAR FOTOGRAFÍA
-               </button>
-             )}
-          </div>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Botón de acción siempre visible de la cámara en vivo */}
+          {activeTab === "camera" && (
+            <div className="mt-6 flex flex-wrap gap-4 p-4">
+              <button
+                type="button"
+                onClick={handleCapture}
+                disabled={isAnalyzing}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 font-black uppercase tracking-widest transition-all shadow-xl cursor-pointer",
+                  isAnalyzing
+                    ? "bg-white/5 text-white/20 cursor-not-allowed"
+                    : "bg-primary text-primary-foreground hover:scale-[1.02] active:scale-[0.98] shadow-primary/30"
+                )}
+              >
+                <Camera className="h-6 w-6" />
+                CAPTURAR Y ANALIZAR
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Lado de Resultados */}
@@ -415,6 +363,8 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
               
               <button 
                 onClick={() => {
+                  localStorage.setItem("ai_recommendation_service", result.recommendation);
+                  localStorage.setItem("ai_recommendation_shape", result.faceShape);
                   if (onSelectAiService) {
                     onSelectAiService(result.recommendation);
                   } else {
