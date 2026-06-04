@@ -19,7 +19,7 @@ export function Footer() {
     <footer id="contacto" className="relative bg-[#0a0a0e] pb-8 pt-16 sm:pt-20">
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
       <div className="container mx-auto px-4">
-        <div className="mb-14 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-12 lg:gap-8">
+        <div className="mb-14 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3 md:gap-12 lg:gap-8">
           {/* Columna 1: Logo y Redes */}
           <div>
             <h3 className="mb-5 bg-gradient-to-r from-primary to-secondary bg-clip-text text-3xl font-extrabold tracking-widest text-transparent">INFINITY</h3>
@@ -124,6 +124,28 @@ export function Footer() {
                 </a>
               </li>
             </ul>
+            
+            {/* Mapa integrado abajo de la dirección */}
+            <div className="mt-6">
+              <div className="overflow-hidden rounded-2xl border border-white/10 h-36 w-full bg-zinc-900 shadow-inner group">
+                <iframe
+                  src={mapSrc}
+                  className="w-full h-full border-0 grayscale invert opacity-75 contrast-125 transition-all duration-500 group-hover:grayscale-0 group-hover:invert-0 group-hover:opacity-100"
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Mapa de ubicación de Infinity Barber"
+                ></iframe>
+              </div>
+              <a 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex text-xs font-bold text-primary hover:text-secondary hover:underline transition-colors cursor-pointer"
+              >
+                Ver en Google Maps grande →
+              </a>
+            </div>
           </div>
 
           {/* Columna 3: Horarios */}
@@ -142,31 +164,6 @@ export function Footer() {
                 <span>Domingos</span> <span className="text-red-400 font-bold border border-red-400/20 bg-red-400/5 px-2.5 py-0.5 rounded-md text-xs uppercase tracking-wider">Cerrado</span>
               </li>
             </ul>
-          </div>
-
-          {/* Columna 4: Mapa Interactivo */}
-          <div>
-            <h4 className="mb-6 flex items-center gap-3 border-b border-primary/20 pb-4 text-lg font-bold text-white sm:mb-8">
-              <MapPin className="w-5 h-5 text-primary" /> Mapa en Vivo
-            </h4>
-            <div className="overflow-hidden rounded-2xl border border-white/10 h-36 w-full bg-zinc-900 shadow-inner group">
-              <iframe
-                src={mapSrc}
-                className="w-full h-full border-0 grayscale invert opacity-75 contrast-125 transition-all duration-500 group-hover:grayscale-0 group-hover:invert-0 group-hover:opacity-100"
-                allowFullScreen={false}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Mapa de ubicación de Infinity Barber"
-              ></iframe>
-            </div>
-            <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex text-xs font-bold text-primary hover:text-secondary hover:underline transition-colors cursor-pointer"
-            >
-              Ver en Google Maps grande →
-            </a>
           </div>
         </div>
 

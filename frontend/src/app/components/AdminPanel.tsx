@@ -633,6 +633,27 @@ export function AdminPanel() {
     }
   };
 
+  const handleResetPin = async (phone: string, name: string) => {
+    const input = window.prompt(`Restablecer PIN para ${name}. Introduce un nuevo PIN de 4 dígitos (deja vacío para restablecer a "1234"):`);
+    if (input === null) return; // cancelado
+
+    const pin = input.trim() || "1234";
+    if (!/^\d{4}$/.test(pin)) {
+      toast.error("El PIN debe ser exactamente de 4 dígitos numéricos.");
+      return;
+    }
+
+    try {
+      await apiFetch("/api/admin/clients/reset-pin", {
+        method: "POST",
+        body: JSON.stringify({ phone, pin }),
+      });
+      toast.success(`PIN de ${name} restablecido exitosamente a "${pin}".`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo restablecer el PIN.");
+    }
+  };
+
   const uploadServiceFile = async () => {
     if (!serviceFile) return serviceForm.image_url;
 
@@ -723,7 +744,7 @@ export function AdminPanel() {
     e.preventDefault();
 
     try {
-      const avatarUrl = await uploadBarberFile();
+      const existing = barbers.find((b) => String(b.id) === String(barberForm.id));
       const payload = {
         full_name: barberForm.full_name,
         username: barberForm.username,
@@ -735,6 +756,7 @@ export function AdminPanel() {
           .map((item) => item.trim())
           .filter(Boolean),
         commission_rate: Number(barberForm.commission_rate || 15),
+        work_schedule: existing ? existing.work_schedule : undefined,
       };
 
       if (barberForm.id) {
@@ -1005,7 +1027,7 @@ export function AdminPanel() {
                   </div>
 
                   <ProChartPanel title="Actividad de los últimos 7 días" action="En vivo" glow="#06b6d4">
-                    <div className="grid gap-4 sm:grid-cols-7">
+                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 md:grid-cols-7">
                       {chartDays.map((day, index) => (
                         <div key={day.key} className="group flex flex-col items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 transition-all hover:-translate-y-1 hover:border-primary/30 hover:bg-white/[0.06]">
                           <p className="text-[11px] font-bold uppercase text-white/45">{day.label}</p>
@@ -1386,10 +1408,11 @@ export function AdminPanel() {
                               <p className="truncate font-bold text-white">{client.name}</p>
                               <p className="flex items-center gap-1 text-xs text-white/45"><Phone className="h-3 w-3" /> {client.phone}</p>
                               <p className="mt-1 text-xs font-semibold text-amber-300">{client.loyalty_points} puntos</p>
-                            </div>
-                            <div className="flex gap-2">
-                              <span onClick={(e) => { e.stopPropagation(); editClient(client); }} className="rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-white/65 hover:bg-white/10 hover:text-white">Editar</span>
-                              <span onClick={(e) => { e.stopPropagation(); deleteClient(client.id); }} className="rounded-lg bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500 hover:text-white">Eliminar</span>
+                              <div className="flex gap-1 mt-1">
+                                <span onClick={(e) => { e.stopPropagation(); editClient(client); }} className="rounded-lg bg-white/5 px-2.5 py-2 text-xs font-semibold text-white/65 hover:bg-white/10 hover:text-white cursor-pointer">Editar</span>
+                                <span onClick={(e) => { e.stopPropagation(); handleResetPin(client.phone, client.name); }} className="rounded-lg bg-primary/15 px-2.5 py-2 text-xs font-bold text-primary hover:bg-primary hover:text-white cursor-pointer" title="Restablecer PIN de acceso">PIN</span>
+                                <span onClick={(e) => { e.stopPropagation(); deleteClient(client.id); }} className="rounded-lg bg-red-500/10 px-2.5 py-2 text-xs font-semibold text-red-300 hover:bg-red-500 hover:text-white cursor-pointer">Eliminar</span>
+                              </div>
                             </div>
                           </button>
                         ))}

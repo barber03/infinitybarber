@@ -15,6 +15,7 @@ export function ClientLogin() {
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,16 +222,28 @@ export function ClientLogin() {
 
               {/* Info toggles */}
               {mode === "login" && (
-                <p className="mt-6 text-center text-xs text-muted-foreground">
-                  ¿No tienes cuenta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setMode("register")}
-                    className="text-primary hover:underline font-bold cursor-pointer"
-                  >
-                    Regístrate aquí
-                  </button>
-                </p>
+                <div className="mt-6 space-y-3 text-center text-xs">
+                  <p className="text-muted-foreground">
+                    ¿No tienes cuenta?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setMode("register")}
+                      className="text-primary hover:underline font-bold cursor-pointer"
+                    >
+                      Regístrate aquí
+                    </button>
+                  </p>
+                  <p className="text-muted-foreground">
+                    ¿Olvidaste tu PIN?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowRecovery(true)}
+                      className="text-primary hover:underline font-bold cursor-pointer"
+                    >
+                      Recuperar PIN
+                    </button>
+                  </p>
+                </div>
               )}
               {mode === "register" && (
                 <p className="mt-6 text-center text-xs text-muted-foreground">
@@ -252,6 +265,35 @@ export function ClientLogin() {
           </p>
         </div>
       </div>
+
+      {/* Recovery Modal */}
+      {showRecovery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d15] p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+            <h3 className="text-lg font-bold text-white mb-2">Recuperar PIN de acceso</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-6">
+              Por motivos de seguridad, para recuperar o cambiar tu PIN de cliente, por favor ponte en contacto con la administración de la barbería. Podemos restablecer tu PIN al instante en nuestro sistema.
+            </p>
+            <div className="flex flex-col gap-2">
+              <a
+                href={`https://wa.me/573127891889?text=Hola,%20olvid%C3%A9%20mi%20PIN%20de%20acceso%20para%20Infinity%20Barber.%20Mi%20n%C3%BAmero%20de%20tel%C3%A9fono%20es%3A%20`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full rounded-xl bg-green-600 hover:bg-green-700 py-3 text-xs font-bold text-white text-center transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                Solicitar por WhatsApp
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowRecovery(false)}
+                className="w-full rounded-xl bg-white/5 hover:bg-white/10 py-3 text-xs font-bold text-white/70 transition-all cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

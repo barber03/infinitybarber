@@ -973,6 +973,31 @@ app.post("/api/admin/barbers/upload", authenticate, requireRole("admin"), barber
   res.status(201).json({ url: req.file.supabaseUrl });
 });
 
+app.post("/api/admin/clients/reset-pin", authenticate, requireRole("admin"), (req, res) => {
+  const phone = normalizePhone(req.body?.phone);
+  const newPin = String(req.body?.pin || "1234").trim();
+
+  if (!phone || !/^\d{4}$/.test(newPin)) {
+    res.status(400).json({ error: "Teléfono y PIN de 4 dígitos válidos son requeridos" });
+    return;
+  }
+
+  const pinHash = hashPin(newPin);
+
+  db.run(
+    "UPDATE client_users SET pin_hash = ? WHERE phone = ?",
+    [pinHash, phone],
+    function(err) {
+      if (err) return sendDbError(res, err);
+      if (this.changes === 0) {
+        res.status(404).json({ error: "Este cliente no tiene una cuenta activa (no se ha registrado en el panel aún)." });
+        return;
+      }
+      res.json({ message: `PIN restablecido exitosamente a ${newPin}` });
+    }
+  );
+});
+
 app.get("/api/admin/clients", authenticate, requireRole("admin"), (_req, res) => {
   db.all(
     `SELECT id, name, phone, email, age, hair_type, favorite_style, last_visit, notes, avatar_url, loyalty_points, created_at
