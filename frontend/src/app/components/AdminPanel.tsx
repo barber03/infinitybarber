@@ -1588,9 +1588,9 @@ export function AdminPanel() {
                               <img src={resolveAssetUrl(barber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg"} alt={barber.full_name} className="h-full w-full object-cover" />
                             </div>
                           </div>
-                          <div className="absolute right-4 top-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                             <button onClick={() => editBarber(barber)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-white backdrop-blur-md hover:bg-primary/80"><Scissors className="h-3.5 w-3.5"/></button>
-                             <button onClick={() => deleteBarber(barber.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-red-400 backdrop-blur-md hover:bg-red-500 hover:text-white"><Trash2 className="h-3.5 w-3.5"/></button>
+                          <div className="absolute right-4 top-4 flex gap-2 z-10">
+                             <button onClick={() => editBarber(barber)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-white backdrop-blur-md hover:bg-primary/80" title="Editar barbero"><Scissors className="h-3.5 w-3.5"/></button>
+                             <button onClick={() => deleteBarber(barber.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-red-400 backdrop-blur-md hover:bg-red-500 hover:text-white" title="Eliminar barbero"><Trash2 className="h-3.5 w-3.5"/></button>
                           </div>
                         </div>
                         <div className="p-6 pt-12">
