@@ -1,5 +1,6 @@
 const db = require("./database");
 const http = require("http");
+const config = require("./config");
 
 function request(options, postData = null) {
   return new Promise((resolve, reject) => {
@@ -130,7 +131,7 @@ async function runTests() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         },
-        { username: "admin", password: "1234" }
+        { username: "admin", password: config.adminPassword }
       );
 
       if (loginRes.statusCode === 200 && loginRes.body.token) {
@@ -215,7 +216,7 @@ async function runTests() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         },
-        { username: "admin", password: "1234" }
+        { username: "admin", password: config.adminPassword }
       );
 
       if (loginRes.statusCode === 200 && loginRes.body.token) {

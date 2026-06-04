@@ -1,7 +1,7 @@
 const { Pool } = require("pg");
 const path = require("path");
 const config = require("./config");
-const { hashPassword } = require("./auth");
+const { hashPassword, comparePassword } = require("./auth");
 
 // Configuración de Supabase / Postgres
 const pool = new Pool({
@@ -303,11 +303,25 @@ const initDB = async () => {
     const profiles = await db.queryAsync("SELECT id, full_name, role, username, barber_password, password_hash FROM profiles");
     for (const profile of profiles.rows) {
       const username = profile.username || (profile.role === "admin" ? config.adminUsername : slugifyUsername(profile.full_name, `barber-${profile.id}`));
-      const plainPassword = profile.barber_password || (profile.role === "admin" ? config.adminPassword : config.defaultBarberPassword);
-      const passwordHash = profile.password_hash || hashPassword(plainPassword);
+      let passwordHash = profile.password_hash;
+
+      if (profile.role === "admin") {
+        if (!passwordHash || !comparePassword(config.adminPassword, passwordHash) || username !== profile.username) {
+          passwordHash = hashPassword(config.adminPassword);
+          console.log(`Auto-updating database credentials for admin: ${config.adminUsername}`);
+        }
+      } else {
+        if (!passwordHash) {
+          const plainPassword = profile.barber_password || config.defaultBarberPassword;
+          passwordHash = hashPassword(plainPassword);
+        }
+      }
 
       await db.queryAsync("UPDATE profiles SET username = $1, password_hash = $2 WHERE id = $3", [username, passwordHash, profile.id]);
     }
+
+    // Clear any plain-text barber_password from the database to improve security
+    await db.queryAsync("UPDATE profiles SET barber_password = NULL WHERE barber_password IS NOT NULL");
 
     console.log("Database initialized successfully.");
   } catch (error) {
