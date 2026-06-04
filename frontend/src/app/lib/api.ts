@@ -129,7 +129,22 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retries 
             : data;
       }
 
-      throw new Error(message);
+      // Sanitize message to prevent XSS/Taint propagation from compromised remote responses
+      const safeMessage = String(message || "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[<>'"&]/g, (char) => {
+          const map: Record<string, string> = {
+            "<": "&lt;",
+            ">": "&gt;",
+            "'": "&#39;",
+            '"': "&quot;",
+            "&": "&amp;",
+          };
+          return map[char] || char;
+        })
+        .substring(0, 250);
+
+      throw new Error(safeMessage);
     }
 
     return data as T;

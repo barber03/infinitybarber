@@ -1,4 +1,7 @@
+require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
 const BASE = process.env.API_BASE || "http://localhost:3000";
+const adminPassword = process.env.ADMIN_PASSWORD || "InfinitySecureBarber2026!";
+const barberPassword = process.env.DEFAULT_BARBER_PASSWORD || "1234";
 
 const results = [];
 
@@ -44,7 +47,7 @@ async function main() {
   const barberLogin = await request("/api/auth/barber/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "juan", password: "1234" }),
+    body: JSON.stringify({ username: "juan", password: barberPassword }),
   });
   const barberToken = barberLogin.body?.token;
   record("POST /api/auth/barber/login", barberLogin.response.ok && Boolean(barberToken));
@@ -64,7 +67,7 @@ async function main() {
   const adminLogin = await request("/api/auth/admin/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "1234" }),
+    body: JSON.stringify({ username: "admin", password: adminPassword }),
   });
   const adminToken = adminLogin.body?.token;
   record("POST /api/auth/admin/login", adminLogin.response.ok && Boolean(adminToken));

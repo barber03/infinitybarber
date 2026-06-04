@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, X, Bot, User, Loader2, Paperclip } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { cn } from "./ui/utils";
+import { getClientSession } from "../lib/clientStorage";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,19 @@ export function AIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Generate or retrieve persistent sessionId for this session
+  const [sessionId, setSessionId] = useState<string>(() => {
+    const CHAT_SESSION_ID_KEY = "infinity_chat_session_id";
+    let id = sessionStorage.getItem(CHAT_SESSION_ID_KEY);
+    if (!id) {
+      id = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+      sessionStorage.setItem(CHAT_SESSION_ID_KEY, id);
+    }
+    return id;
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -50,10 +64,17 @@ export function AIAssistant() {
       const userMessage: Message = { role: "user", content: `(Comprobante subido: ${imgUrl})` };
       setMessages((prev) => [...prev, userMessage]);
 
+      const clientSession = getClientSession();
+      const clientName = clientSession?.user?.name || null;
+      const clientPhone = clientSession?.user?.phone || null;
+
       const response = await apiFetch<{ message: string }>("/api/chat", {
         method: "POST",
         body: JSON.stringify({
           messages: [...messages, userMessage].map((m) => ({ role: m.role, content: m.content })),
+          sessionId,
+          clientPhone,
+          clientName,
         }),
       });
 
@@ -96,10 +117,17 @@ export function AIAssistant() {
     setIsLoading(true);
 
     try {
+      const clientSession = getClientSession();
+      const clientName = clientSession?.user?.name || null;
+      const clientPhone = clientSession?.user?.phone || null;
+
       const response = await apiFetch<{ message: string }>("/api/chat", {
         method: "POST",
         body: JSON.stringify({
           messages: [...messages, userMessage].map((m) => ({ role: m.role, content: m.content })),
+          sessionId,
+          clientPhone,
+          clientName,
         }),
       });
 

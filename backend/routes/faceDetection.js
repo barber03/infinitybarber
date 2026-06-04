@@ -59,7 +59,7 @@ router.post("/detectar-rostro", upload.single("image"), async (req, res) => {
       });
     }
 
-    console.log(`Recibida imagen para detección de rostro: ${req.file.originalname} (${req.file.size} bytes)`);
+    console.log(`Recibida imagen para detección de rostro (${req.file.size} bytes)`);
 
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
     const AI_MODEL = process.env.AI_MODEL || "gpt-4o";

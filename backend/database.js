@@ -244,12 +244,38 @@ const initDB = async () => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    await db.queryAsync(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id SERIAL PRIMARY KEY,
+      action TEXT NOT NULL,
+      details TEXT,
+      ip_address TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await db.queryAsync(`CREATE TABLE IF NOT EXISTS chat_conversations (
+      id TEXT PRIMARY KEY,
+      client_phone TEXT,
+      client_name TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await db.queryAsync(`CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      sender TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_barber_time_off_barber_date ON barber_time_off (barber_id, off_date)");
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_barber_portfolio_barber ON barber_portfolio (barber_id)");
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_user_notifications_client ON user_notifications (client_user_id)");
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_change_requests_appointment ON appointment_change_requests (appointment_id)");
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_appointments_barber_date ON appointments (barber_id, appointment_date)");
     await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles (role)");
+    await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at DESC)");
+    await db.queryAsync("CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages (conversation_id)");
 
     const defaultScheduleJson = JSON.stringify({
       days: ["mon", "tue", "wed", "thu", "fri", "sat"],

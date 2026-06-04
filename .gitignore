@@ -17,3 +17,10 @@ run.live.err.log
 .DS_Store
 .idea/
 .vscode/
+backend/sqlite_data.json
+frontend/public/gallery/
+frontend/public/hairstyles/
+frontend/public/barbers/
+frontend/public/clients/
+frontend/public/barber-portfolio/
+frontend/public/services/

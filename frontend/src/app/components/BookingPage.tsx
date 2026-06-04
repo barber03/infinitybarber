@@ -285,7 +285,7 @@ export function BookingPage() {
                   {BOOKING_STEPS.map((step, index) => (
                     <div key={step} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-background/35 px-4 py-3">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-black ${completedSteps > index ? "border-primary/40 bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/65"}`}>
-                        {completedSteps > index ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                        {completedSteps > index ? <CheckCircle2 className="h-4 w-4" /> : <span key={index}>{index + 1}</span>}
                       </div>
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">{step}</p>
@@ -526,7 +526,7 @@ export function BookingPage() {
                                     ].join(" ")}
                                   >
                                     <span className="block">{slot}</span>
-                                    <span className="mt-1 block text-[11px] font-medium uppercase tracking-[0.18em]">
+                                    <span key={isBooked ? "o" : isSelected ? "s" : "l"} className="mt-1 block text-[11px] font-medium uppercase tracking-[0.18em]">
                                       {isBooked ? "Ocupado" : isSelected ? "Seleccionado" : "Libre"}
                                     </span>
                                   </button>
@@ -568,7 +568,9 @@ export function BookingPage() {
                           <Label className="flex items-center gap-2 text-muted-foreground">Captura de pantalla (Comprobante)</Label>
                           <Label htmlFor="payment-screenshot" className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-background/40 font-semibold text-primary/80 transition-all hover:bg-primary/10">
                             <UploadCloud size={18} />
-                            {isUploading ? "Subiendo..." : paymentScreenshot ? "Captura subida ✓" : "Subir imagen..."}
+                            <span key={isUploading ? "up" : paymentScreenshot ? "done" : "idle"}>
+                              {isUploading ? "Subiendo..." : paymentScreenshot ? "Captura subida ✓" : "Subir imagen..."}
+                            </span>
                             <input id="payment-screenshot" type="file" accept="image/*" hidden onChange={handleFileUpload} />
                           </Label>
                         </div>
@@ -578,7 +580,9 @@ export function BookingPage() {
 
                   <div className="flex flex-col gap-4">
                     <Button type="submit" disabled={isSubmitting} className="h-14 w-full rounded-xl bg-gradient-to-r from-primary to-secondary text-base font-extrabold tracking-wide uppercase transition-all shadow-[0_0_30px_rgba(139,92,246,0.4)] hover:from-primary/80 hover:to-secondary/80 hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] sm:text-lg">
-                      {isSubmitting ? "Registrando..." : "Confirmar reserva"}
+                      <span key={isSubmitting ? "sub" : "idle"}>
+                        {isSubmitting ? "Registrando..." : "Confirmar reserva"}
+                      </span>
                     </Button>
                     <div className="rounded-2xl border border-white/10 bg-background/35 px-4 py-4 text-sm text-white/70">
                       La cita queda en estado pendiente hasta que tu pago sea revisado por administracion.
@@ -644,7 +648,7 @@ function Field({
     <div className="space-y-2">
       <Label htmlFor={htmlFor} className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        {label}
+        <span>{label}</span>
       </Label>
       {children}
     </div>

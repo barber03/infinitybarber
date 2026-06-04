@@ -1,8 +1,11 @@
+require("dotenv").config();
+const config = require("./config");
+
 const loginAndUpload = async () => {
   const loginRes = await fetch("http://localhost:3000/api/auth/admin/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "1234" })
+    body: JSON.stringify({ username: "admin", password: config.adminPassword })
   });
   const loginData = await loginRes.json();
   const token = loginData.token;

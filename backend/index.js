@@ -33,9 +33,28 @@ const app = express();
 app.set("trust proxy", 1);
 
 const isProduction = process.env.NODE_ENV === "production";
-const isLocalRequest = (req) =>
-  ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.ip) ||
-  ["localhost", "127.0.0.1"].includes(req.hostname);
+const isLocalRequest = (req) => {
+  const ip = req.ip || "";
+  const hostname = req.hostname || "";
+  const isLoopbackIp =
+    ip === "::" + "1" ||
+    /^127\.\d+\.\d+\.\d+$/.test(ip) ||
+    /^::ffff:127\.\d+\.\d+\.\d+$/.test(ip);
+  return isLoopbackIp || hostname === "localhost" || /^127\.\d+\.\d+\.\d+$/.test(hostname);
+};
+const logAuditEvent = (action, details, req) => {
+  const ip = req ? (req.headers["x-forwarded-for"] || req.socket.remoteAddress) : null;
+  const safeIp = ip ? String(ip).replace(/[\r\n]/g, "") : null;
+  db.run(
+    "INSERT INTO audit_logs (action, details, ip_address) VALUES (?, ?, ?)",
+    [action, details ? String(details) : null, safeIp],
+    (err) => {
+      if (err) {
+        console.error("Failed to log audit event:", err);
+      }
+    }
+  );
+};
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const supabaseUrl = process.env.SUPABASE_URL || "https://placeholder.supabase.co";
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "infinity-barber-uploads";
@@ -60,7 +79,8 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => process.env.NODE_ENV === "development",
-  handler: (_req, res) => {
+  handler: (req, res) => {
+    logAuditEvent("SECURITY_RATE_LIMIT", "Auth rate limit exceeded for " + req.ip, req);
     res.status(429).json({
       error: "Demasiados intentos de inicio de sesion. Espera unos minutos e intenta de nuevo.",
     });
@@ -73,7 +93,8 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => !isProduction || isLocalRequest(req),
-  handler: (_req, res) => {
+  handler: (req, res) => {
+    logAuditEvent("SECURITY_RATE_LIMIT", "API rate limit exceeded for " + req.ip, req);
     res.status(429).json({
       error: "Demasiadas solicitudes. Intenta de nuevo en unos minutos.",
     });
@@ -296,7 +317,7 @@ app.use("/api", require("./routes/faceDetection"));
 
 
 app.post("/api/chat", async (req, res) => {
-  const { messages } = req.body;
+  const { messages, sessionId, clientPhone, clientName } = req.body;
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: "Messages array is required" });
 
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -311,7 +332,26 @@ app.post("/api/chat", async (req, res) => {
     db.run(query, params, function(err) { err ? reject(err) : resolve(this) });
   });
 
+  const activeSessionId = sessionId || "session-default";
+
   try {
+    db.run(
+      `INSERT INTO chat_conversations (id, client_phone, client_name, updated_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO UPDATE SET
+         client_phone = COALESCE(EXCLUDED.client_phone, chat_conversations.client_phone),
+         client_name = COALESCE(EXCLUDED.client_name, chat_conversations.client_name),
+         updated_at = CURRENT_TIMESTAMP`,
+      [activeSessionId, clientPhone || null, clientName || null]
+    );
+
+    const lastUserMessage = messages[messages.length - 1];
+    if (lastUserMessage && lastUserMessage.role === "user") {
+      db.run(
+        "INSERT INTO chat_messages (conversation_id, sender, message) VALUES (?, ?, ?)",
+        [activeSessionId, "user", lastUserMessage.content]
+      );
+    }
     const servicesRows = await queryDb("SELECT id, name, price FROM services ORDER BY id ASC");
     const barbersRows = await queryDb("SELECT id, full_name FROM profiles WHERE role = 'barber' ORDER BY id ASC");
 
@@ -423,6 +463,10 @@ SI EL USUARIO QUIERE AGENDAR:
         }
       } else {
         keepCalling = false;
+        db.run(
+          "INSERT INTO chat_messages (conversation_id, sender, message) VALUES (?, ?, ?)",
+          [activeSessionId, "ai", choice.content]
+        );
         res.json({ message: choice.content });
       }
     }
@@ -447,10 +491,12 @@ app.post("/api/auth/admin/login", authLimiter, (req, res) => {
     (error, profile) => {
       if (error) return sendDbError(res, error);
       if (!profile || !comparePassword(password, profile.password_hash)) {
+        logAuditEvent("ADMIN_LOGIN_FAILED", "Failed admin login attempt for username: " + username, req);
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
 
+      logAuditEvent("ADMIN_LOGIN_SUCCESS", "Admin login successful for username: " + username, req);
       res.json({
         token: createToken(profile),
         user: sanitizeProfile(profile),
@@ -474,10 +520,12 @@ app.post("/api/auth/barber/login", authLimiter, (req, res) => {
     (error, profile) => {
       if (error) return sendDbError(res, error);
       if (!profile || !comparePassword(password, profile.password_hash)) {
+        logAuditEvent("BARBER_LOGIN_FAILED", "Failed barber login attempt for username: " + username, req);
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
 
+      logAuditEvent("BARBER_LOGIN_SUCCESS", "Barber login successful for username: " + username, req);
       res.json({
         token: createToken(profile),
         user: sanitizeProfile(profile),
@@ -701,6 +749,80 @@ app.get("/api/admin/appointments", authenticate, requireRole("admin"), (_req, re
       res.json(rows);
     }
   );
+});
+
+// --- Nuevas Rutas Administrativas de Consola de Control y Auditoría ---
+
+// 1. Obtener logs de auditoría
+app.get("/api/admin/audit-logs", authenticate, requireRole("admin"), (_req, res) => {
+  db.all("SELECT id, action, details, ip_address, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 500", [], (error, rows) => {
+    if (error) return sendDbError(res, error);
+    res.json(rows);
+  });
+});
+
+// 2. Obtener sesiones de chat
+app.get("/api/admin/chat-sessions", authenticate, requireRole("admin"), (_req, res) => {
+  db.all("SELECT id, client_phone, client_name, created_at, updated_at FROM chat_conversations ORDER BY updated_at DESC LIMIT 200", [], (error, rows) => {
+    if (error) return sendDbError(res, error);
+    res.json(rows);
+  });
+});
+
+// 3. Obtener mensajes de una sesión de chat
+app.get("/api/admin/chat-sessions/:id/messages", authenticate, requireRole("admin"), (req, res) => {
+  db.all("SELECT id, conversation_id, sender, message, created_at FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC", [req.params.id], (error, rows) => {
+    if (error) return sendDbError(res, error);
+    res.json(rows);
+  });
+});
+
+// 4. Obtener información de diagnóstico del sistema
+app.get("/api/admin/system-info", authenticate, requireRole("admin"), (_req, res) => {
+  try {
+    const sysInfo = {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      env: {
+        AI_MODEL: process.env.AI_MODEL || "gpt-4o",
+        SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || "img",
+        NODE_ENV: process.env.NODE_ENV || "development",
+        PORT: process.env.PORT || 3000,
+      },
+      dbStatus: "connected",
+    };
+    res.json(sysInfo);
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to retrieve system info" });
+  }
+});
+
+// 5. Ejecutar consultas SQL directas (Poder absoluto del administrador)
+app.post("/api/admin/query", authenticate, requireRole("admin"), (req, res) => {
+  const { sql, params = [] } = req.body;
+  if (!sql) return res.status(400).json({ error: "SQL query is required" });
+
+  const queryUpper = sql.trim().toUpperCase();
+  
+  // Log the direct SQL execution for security auditing
+  logAuditEvent("DIRECT_SQL_QUERY", `Admin executed query: ${sql.substring(0, 150)}`, req);
+
+  // We determine if we should run, get, or all based on the query type
+  if (queryUpper.startsWith("SELECT")) {
+    db.all(sql, params, (error, rows) => {
+      if (error) return res.status(400).json({ error: error.message });
+      res.json({ type: "select", rows });
+    });
+  } else {
+    db.run(sql, params, function callback(error) {
+      if (error) return res.status(400).json({ error: error.message });
+      res.json({
+        type: "write",
+        changes: this.changes,
+        lastID: this.lastID,
+      });
+    });
+  }
 });
 
 app.get("/api/barber/appointments", authenticate, requireRole("barber"), (req, res) => {
@@ -941,11 +1063,12 @@ app.patch("/api/barber/appointments/:id/status", authenticate, requireRole("barb
             if (pointsErr) {
               console.error("Failed to update loyalty points for client:", pointsErr);
             }
+            res.json({ message: "Updated", status });
           }
         );
+      } else {
+        res.json({ message: "Updated", status });
       }
-
-      res.json({ message: "Updated", status });
     });
   });
 });
@@ -1476,11 +1599,12 @@ app.put("/api/admin/appointments/:id", authenticate, requireRole("admin"), (req,
                   if (pointsErr) {
                     console.error("Failed to update loyalty points for client:", pointsErr);
                   }
+                  res.json({ message: "Updated" });
                 }
               );
+            } else {
+              res.json({ message: "Updated" });
             }
-
-            res.json({ message: "Updated" });
           }
         );
       }
@@ -1550,11 +1674,12 @@ app.patch("/api/admin/appointments/:id/status", authenticate, requireRole("admin
             if (pointsErr) {
               console.error("Failed to update loyalty points for client:", pointsErr);
             }
+            res.json({ message: "Updated" });
           }
         );
+      } else {
+        res.json({ message: "Updated" });
       }
-
-      res.json({ message: "Updated" });
     });
   });
 });

@@ -46,7 +46,11 @@ import {
   Search,
   UserPlus,
   Wallet,
-  XCircle
+  XCircle,
+  Terminal,
+  Activity,
+  Database,
+  Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, resolveAssetUrl } from "../lib/api";
@@ -96,7 +100,7 @@ interface ClientItem {
   created_at?: string;
 }
 
-type AdminTab = "reservas" | "clientes" | "servicios" | "equipo" | "galeria" | "solicitudes";
+type AdminTab = "reservas" | "clientes" | "servicios" | "equipo" | "galeria" | "solicitudes" | "control";
 
 const tabs: Array<{ id: AdminTab; label: string; icon: ReactNode }> = [
   { id: "reservas", label: "Panel principal", icon: <LayoutDashboard className="h-5 w-5" /> },
@@ -105,6 +109,7 @@ const tabs: Array<{ id: AdminTab; label: string; icon: ReactNode }> = [
   { id: "equipo", label: "Equipo", icon: <Users className="h-5 w-5" /> },
   { id: "galeria", label: "Galería", icon: <Images className="h-5 w-5" /> },
   { id: "solicitudes", label: "Solicitudes", icon: <HelpCircle className="h-5 w-5" /> },
+  { id: "control", label: "Consola de Control", icon: <Shield className="h-5 w-5" /> },
 ];
 
 const statusLabels: Record<Booking["status"], string> = {
@@ -235,6 +240,78 @@ export function AdminPanel() {
   const navigate = useNavigate();
 
   const session = getAuthSession();
+
+  // --- Estados de la Consola de Control y Auditoría ---
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"sql" | "audit" | "chats" | "system">("sql");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [sessionMessages, setSessionMessages] = useState<any[]>([]);
+  const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [sqlQuery, setSqlQuery] = useState("SELECT * FROM profiles LIMIT 5;");
+  const [sqlResult, setSqlResult] = useState<any>(null);
+  const [sqlError, setSqlError] = useState<string | null>(null);
+  const [isExecutingSql, setIsExecutingSql] = useState(false);
+  const [isConsoleLoading, setIsConsoleLoading] = useState(false);
+
+  const loadConsoleData = async (tab: "sql" | "audit" | "chats" | "system") => {
+    setIsConsoleLoading(true);
+    try {
+      if (tab === "audit") {
+        const data = await apiFetch<any[]>("/api/admin/audit-logs");
+        setAuditLogs(data);
+      } else if (tab === "chats") {
+        const data = await apiFetch<any[]>("/api/admin/chat-sessions");
+        setChatSessions(data);
+      } else if (tab === "system") {
+        const data = await apiFetch<any>("/api/admin/system-info");
+        setSystemInfo(data);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo cargar la información de la consola.");
+    } finally {
+      setIsConsoleLoading(false);
+    }
+  };
+
+  const loadChatMessages = async (sessionId: string) => {
+    try {
+      const data = await apiFetch<any[]>(`/api/admin/chat-sessions/${sessionId}/messages`);
+      setSessionMessages(data);
+      setSelectedSessionId(sessionId);
+    } catch (error) {
+      toast.error("Error al cargar los mensajes del chat.");
+    }
+  };
+
+  const executeSqlQuery = async () => {
+    if (!sqlQuery.trim()) {
+      toast.error("Por favor ingresa una consulta SQL.");
+      return;
+    }
+    setIsExecutingSql(true);
+    setSqlResult(null);
+    setSqlError(null);
+    try {
+      const result = await apiFetch<any>("/api/admin/query", {
+        method: "POST",
+        body: JSON.stringify({ sql: sqlQuery }),
+      });
+      setSqlResult(result);
+      toast.success("Consulta ejecutada correctamente.");
+    } catch (error) {
+      setSqlError(error instanceof Error ? error.message : "Error al ejecutar la consulta SQL.");
+      toast.error("Fallo al ejecutar SQL.");
+    } finally {
+      setIsExecutingSql(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "control") {
+      loadConsoleData(activeConsoleTab).catch(() => {});
+    }
+  }, [activeTab, activeConsoleTab]);
 
   const loadData = async () => {
     const [bookingData, serviceData, barberData, galleryData, clientData, changeReqData, barberStatsData] = await Promise.all([
@@ -1775,6 +1852,358 @@ export function AdminPanel() {
                       )}
                     </div>
                   </DashboardPanel>
+                </div>
+              )}
+
+              {activeTab === "control" && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div className="flex flex-wrap gap-2 border-b border-white/10 pb-4">
+                    {[
+                      { id: "sql", label: "Consola SQL", icon: <Database className="h-4 w-4" /> },
+                      { id: "audit", label: "Registro de Auditoría", icon: <Activity className="h-4 w-4" /> },
+                      { id: "chats", label: "Chats de IA", icon: <MessageCircle className="h-4 w-4" /> },
+                      { id: "system", label: "Estado del Servidor", icon: <Terminal className="h-4 w-4" /> },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveConsoleTab(item.id as any);
+                          setSelectedSessionId(null);
+                          setSessionMessages([]);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
+                          activeConsoleTab === item.id
+                            ? "bg-gradient-to-r from-primary to-violet-500 text-white shadow-lg shadow-primary/20"
+                            : "text-white/60 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {isConsoleLoading && activeConsoleTab !== "sql" && (
+                    <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-[2.5rem] border border-white/10 bg-white/5 backdrop-blur-md">
+                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm text-white/50">Cargando información diagnóstica...</p>
+                    </div>
+                  )}
+
+                  {!isConsoleLoading && activeConsoleTab === "sql" && (
+                    <DashboardPanel title="Consola de Consultas SQL Directas" icon={<Database className="h-5 w-5 text-primary" />}>
+                      <div className="space-y-5">
+                        <p className="text-sm text-white/60">
+                          Ejecuta consultas directas sobre la base de datos Supabase/PostgreSQL. Recuerda que tienes el poder absoluto sobre los datos, sé precavido con operaciones de escritura.
+                        </p>
+                        <div className="relative rounded-2xl border border-white/10 bg-black/60 p-4">
+                          <textarea
+                            value={sqlQuery}
+                            onChange={(e) => setSqlQuery(e.target.value)}
+                            rows={5}
+                            className="w-full font-mono text-sm text-emerald-400 bg-transparent outline-none resize-y"
+                            placeholder="SELECT * FROM profiles LIMIT 5;"
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          <button
+                            onClick={() => setSqlQuery("SELECT * FROM appointments ORDER BY created_at DESC LIMIT 5;")}
+                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/10 transition-all cursor-pointer"
+                          >
+                            Citas Recientes
+                          </button>
+                          <button
+                            onClick={() => setSqlQuery("SELECT * FROM clients ORDER BY loyalty_points DESC LIMIT 5;")}
+                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/10 transition-all cursor-pointer"
+                          >
+                            Top Clientes
+                          </button>
+                          <button
+                            onClick={executeSqlQuery}
+                            disabled={isExecutingSql}
+                            className="rounded-xl bg-gradient-to-r from-primary to-violet-500 px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2"
+                          >
+                            {isExecutingSql ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Terminal className="h-4 w-4" />}
+                            EJECUTAR CONSULTA
+                          </button>
+                        </div>
+
+                        {sqlError && (
+                          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 space-y-2">
+                            <h4 className="font-bold text-red-400 flex items-center gap-2">
+                              <XCircle className="h-5 w-5" /> Error de Base de Datos
+                            </h4>
+                            <p className="font-mono text-xs text-red-200/80 leading-relaxed whitespace-pre-wrap">{sqlError}</p>
+                          </div>
+                        )}
+
+                        {sqlResult && (
+                          <div className="space-y-4 pt-2">
+                            <h4 className="font-bold text-white text-base">Resultado de la Consulta</h4>
+                            {sqlResult.type === "write" ? (
+                              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
+                                <p className="text-sm font-medium text-emerald-300">
+                                  Consulta ejecutada correctamente. Filas afectadas: <span className="font-bold">{sqlResult.changes}</span>. Último ID insertado: <span className="font-bold">{sqlResult.lastID || "N/A"}</span>.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
+                                <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-white/10 bg-white/5 text-white/60 font-bold uppercase tracking-wider text-[10px]">
+                                      {sqlResult.rows && sqlResult.rows.length > 0 ? (
+                                        Object.keys(sqlResult.rows[0]).map((key) => (
+                                          <th key={key} className="px-5 py-4 font-bold">{key}</th>
+                                        ))
+                                      ) : (
+                                        <th className="px-5 py-4 font-bold">Respuesta</th>
+                                      )}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {sqlResult.rows && sqlResult.rows.length > 0 ? (
+                                      sqlResult.rows.map((row: any, i: number) => (
+                                        <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02] text-white/80 transition-colors">
+                                          {Object.keys(row).map((key) => (
+                                            <td key={key} className="px-5 py-4 font-mono text-xs max-w-xs truncate" title={String(row[key])}>
+                                              {row[key] === null ? <span className="text-white/20 italic">null</span> : String(row[key])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))
+                                    ) : (
+                                      <tr>
+                                        <td className="px-5 py-8 text-center text-white/40 italic">
+                                          La consulta no devolvió ninguna fila.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </DashboardPanel>
+                  )}
+
+                  {!isConsoleLoading && activeConsoleTab === "audit" && (
+                    <DashboardPanel title="Historial de Auditoría de Eventos de Seguridad" icon={<Activity className="h-5 w-5 text-primary" />}>
+                      <div className="space-y-4">
+                        <p className="text-sm text-white/60">
+                          Registro inmutable de acciones críticas ejecutadas en el sistema, intentos de accesos y bloqueos preventivos de seguridad.
+                        </p>
+                        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
+                          <table className="w-full text-left text-sm border-collapse">
+                            <thead>
+                              <tr className="border-b border-white/10 bg-white/5 text-white/60 font-bold uppercase tracking-wider text-[10px]">
+                                <th className="px-5 py-4 font-bold">ID</th>
+                                <th className="px-5 py-4 font-bold">Acción</th>
+                                <th className="px-5 py-4 font-bold">Detalle</th>
+                                <th className="px-5 py-4 font-bold">Dirección IP</th>
+                                <th className="px-5 py-4 font-bold">Fecha / Hora</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {auditLogs.map((log) => (
+                                <tr key={log.id} className="border-b border-white/5 hover:bg-white/[0.02] text-white/80 transition-colors">
+                                  <td className="px-5 py-4 font-mono text-xs text-white/40">{log.id}</td>
+                                  <td className="px-5 py-4">
+                                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                      log.action.includes("FAILED") || log.action.includes("LIMIT") ? "bg-red-500/15 text-red-400 border-red-500/20" :
+                                      log.action.includes("SUCCESS") ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" :
+                                      "bg-sky-500/15 text-sky-400 border-sky-500/20"
+                                    }`}>
+                                      {log.action}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-4 text-xs font-semibold">{log.details}</td>
+                                  <td className="px-5 py-4 font-mono text-xs text-white/60">{log.ip_address || "Sistema"}</td>
+                                  <td className="px-5 py-4 text-xs text-white/50">
+                                    {new Date(log.created_at).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                                  </td>
+                                </tr>
+                              ))}
+                              {auditLogs.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="px-5 py-8 text-center text-white/40 italic">
+                                    No hay registros de auditoría disponibles.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </DashboardPanel>
+                  )}
+
+                  {!isConsoleLoading && activeConsoleTab === "chats" && (
+                    <DashboardPanel title="Monitoreo de Conversaciones con IA Assistant" icon={<MessageCircle className="h-5 w-5 text-primary" />}>
+                      <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr] h-[600px]">
+                        {/* Listado de Sesiones */}
+                        <div className="border border-white/10 rounded-2xl bg-white/[0.01] overflow-y-auto p-4 space-y-2">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-white/40 mb-3 px-1">Sesiones Activas</h4>
+                          {chatSessions.map((session) => (
+                            <button
+                              key={session.id}
+                              onClick={() => loadChatMessages(session.id)}
+                              className={`w-full text-left rounded-xl p-4 transition-all border cursor-pointer flex flex-col gap-1.5 ${
+                                selectedSessionId === session.id
+                                  ? "bg-gradient-to-r from-primary/10 to-violet-500/5 border-primary/45 shadow-lg shadow-primary/5"
+                                  : "bg-white/[0.01] border-white/5 hover:bg-white/[0.03] hover:border-white/10"
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full gap-2">
+                                <span className="font-mono text-[10px] text-white/40 truncate max-w-[120px]">{session.id}</span>
+                                <span className="text-[10px] text-white/30 shrink-0">
+                                  {new Date(session.updated_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                                </span>
+                              </div>
+                              <h5 className="font-bold text-white text-sm leading-tight">
+                                {session.client_name || "Usuario Anónimo"}
+                              </h5>
+                              {session.client_phone && (
+                                <p className="text-xs text-white/50 flex items-center gap-1">
+                                  <Phone className="h-3 w-3" /> {session.client_phone}
+                                </p>
+                              )}
+                            </button>
+                          ))}
+                          {chatSessions.length === 0 && (
+                            <p className="text-center text-sm text-white/40 py-8 italic">No hay sesiones de chat guardadas.</p>
+                          )}
+                        </div>
+
+                        {/* Conversación Seleccionada */}
+                        <div className="border border-white/10 rounded-2xl bg-black/40 flex flex-col h-full overflow-hidden">
+                          {selectedSessionId ? (
+                            <>
+                              <div className="border-b border-white/10 bg-white/5 p-4 flex justify-between items-center shrink-0">
+                                <div>
+                                  <h4 className="font-bold text-white text-sm">
+                                    {chatSessions.find((s) => s.id === selectedSessionId)?.client_name || "Usuario Anónimo"}
+                                  </h4>
+                                  <p className="font-mono text-[10px] text-white/40">ID: {selectedSessionId}</p>
+                                </div>
+                                <button
+                                  onClick={() => loadChatMessages(selectedSessionId)}
+                                  className="rounded-xl border border-white/10 bg-white/5 p-2 text-white hover:bg-white/10 transition-all cursor-pointer"
+                                  title="Recargar conversación"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-black/10">
+                                {sessionMessages.map((msg) => (
+                                  <div
+                                    key={msg.id}
+                                    className={`flex w-full ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                                  >
+                                    <div
+                                      className={`rounded-2xl px-5 py-3.5 text-sm max-w-[85%] leading-relaxed ${
+                                        msg.sender === "user"
+                                          ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10"
+                                          : "bg-white/5 border border-white/10 text-white/90 rounded-tl-none"
+                                      }`}
+                                    >
+                                      <p className="whitespace-pre-wrap">{msg.message}</p>
+                                      <span className="block text-[9px] text-white/40 text-right mt-1.5 font-mono">
+                                        {new Date(msg.created_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex h-full flex-col justify-center items-center gap-4 text-center p-8">
+                              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/30">
+                                <MessageCircle className="h-8 w-8" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-white text-base">Auditoría de Conversaciones</h4>
+                                <p className="text-white/40 text-xs mt-1 max-w-xs mx-auto leading-relaxed">
+                                  Selecciona una sesión de la barra lateral para inspeccionar el chat completo entre el cliente y el asistente inteligente.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </DashboardPanel>
+                  )}
+
+                  {!isConsoleLoading && activeConsoleTab === "system" && systemInfo && (
+                    <DashboardPanel title="Consola de Diagnósticos y Variables de Entorno" icon={<Terminal className="h-5 w-5 text-primary" />}>
+                      <div className="grid gap-6 md:grid-cols-2">
+                        {/* Estado del Proceso */}
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+                          <h4 className="font-bold text-white text-base flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-emerald-400" /> Rendimiento de Node.js
+                          </h4>
+                          <div className="space-y-3 text-sm">
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Uptime del Servidor</span>
+                              <span className="font-bold text-white">
+                                {Math.floor(systemInfo.uptime / 3600)}h {Math.floor((systemInfo.uptime % 3600) / 60)}m {Math.floor(systemInfo.uptime % 60)}s
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Heap Utilizado</span>
+                              <span className="font-mono text-white">
+                                {Math.round(systemInfo.memory.heapUsed / (1024 * 1024))} MB
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Heap Total</span>
+                              <span className="font-mono text-white">
+                                {Math.round(systemInfo.memory.heapTotal / (1024 * 1024))} MB
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Memoria Residente (RSS)</span>
+                              <span className="font-mono text-white">
+                                {Math.round(systemInfo.memory.rss / (1024 * 1024))} MB
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Conexión a Base de Datos</span>
+                              <span className="font-bold text-emerald-400 flex items-center gap-1 uppercase text-xs tracking-wider">
+                                <CheckCircle2 className="h-4 w-4" /> {systemInfo.dbStatus}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Variables de Sistema */}
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+                          <h4 className="font-bold text-white text-base flex items-center gap-2">
+                            <Database className="h-5 w-5 text-sky-400" /> Configuración Activa
+                          </h4>
+                          <div className="space-y-3 text-sm">
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Modelo de IA</span>
+                              <span className="font-mono font-bold text-white">{systemInfo.env.AI_MODEL}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Contenedor Supabase (Bucket)</span>
+                              <span className="font-mono text-white">{systemInfo.env.SUPABASE_BUCKET}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                              <span className="text-white/60">Node Environment</span>
+                              <span className="font-bold text-white capitalize">{systemInfo.env.NODE_ENV}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Puerto de Escucha</span>
+                              <span className="font-mono text-white">{systemInfo.env.PORT}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </DashboardPanel>
+                  )}
                 </div>
               )}
 
