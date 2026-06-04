@@ -27,6 +27,6 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
   corsOrigins: getCorsOrigins(),
   adminUsername: process.env.ADMIN_USERNAME || "admin",
-  adminPassword: process.env.ADMIN_PASSWORD || "InfinitySecureBarber2026!",
+  adminPassword: (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== "1234") ? process.env.ADMIN_PASSWORD : "InfinitySecureBarber2026!",
   defaultBarberPassword: process.env.DEFAULT_BARBER_PASSWORD || "1234",
 };
