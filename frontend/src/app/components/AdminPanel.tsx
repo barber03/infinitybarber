@@ -7,6 +7,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -244,7 +245,7 @@ export function AdminPanel() {
   const session = getAuthSession();
 
   // --- Estados de la Consola de Control y Auditoría ---
-  const [activeConsoleTab, setActiveConsoleTab] = useState<"sql" | "audit" | "chats" | "system">("sql");
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"sql" | "audit" | "chats" | "system" | "backup">("sql");
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [chatSessions, setChatSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -256,7 +257,12 @@ export function AdminPanel() {
   const [isExecutingSql, setIsExecutingSql] = useState(false);
   const [isConsoleLoading, setIsConsoleLoading] = useState(false);
 
-  const loadConsoleData = async (tab: "sql" | "audit" | "chats" | "system") => {
+  // Backup states
+  const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const loadConsoleData = async (tab: "sql" | "audit" | "chats" | "system" | "backup") => {
     setIsConsoleLoading(true);
     try {
       if (tab === "audit") {
@@ -487,11 +493,61 @@ export function AdminPanel() {
   const bookingStatusData = statusOptions
     .map((status) => ({ name: statusLabels[status], value: bookings.filter((booking) => booking.status === status).length }))
     .filter((item) => item.value > 0);
+
+  // --- Cálculo de tendencias dinámicas ---
+  const prev7DaysKeys = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(todayKey);
+    date.setDate(date.getDate() - (index + 1));
+    return date.toISOString().slice(0, 10);
+  });
+  
+  // 1. Ganancias hoy vs promedio últimos 7 días
+  const prev7DaysRevenues = prev7DaysKeys.map(key => revenueFor((booking) => booking.appointment_date === key));
+  const avgRevenuePrev7 = prev7DaysRevenues.reduce((a, b) => a + b, 0) / 7;
+  const revenueTrend = avgRevenuePrev7 > 0 ? ((revenueToday - avgRevenuePrev7) / avgRevenuePrev7) * 100 : 0;
+
+  // 2. Citas hoy vs promedio últimos 7 días
+  const prev7DaysBookingsCount = prev7DaysKeys.map(key => bookings.filter((booking) => booking.appointment_date === key).length);
+  const avgBookingsPrev7 = prev7DaysBookingsCount.reduce((a, b) => a + b, 0) / 7;
+  const bookingsTrend = avgBookingsPrev7 > 0 ? ((todayBookings.length - avgBookingsPrev7) / avgBookingsPrev7) * 100 : 0;
+
+  // 3. Registro de clientes última semana vs semana anterior
+  const clientsCreatedLast7Days = clients.filter(c => {
+    if (!c.created_at) return false;
+    const createdDate = c.created_at.slice(0, 10);
+    return createdDate >= weekStartKey && createdDate <= todayKey;
+  }).length;
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+  const prevWeekStartKey = prevWeekStart.toISOString().slice(0, 10);
+  const clientsCreatedPrev7Days = clients.filter(c => {
+    if (!c.created_at) return false;
+    const createdDate = c.created_at.slice(0, 10);
+    return createdDate >= prevWeekStartKey && createdDate < weekStartKey;
+  }).length;
+  const clientsTrend = clientsCreatedPrev7Days > 0 
+    ? ((clientsCreatedLast7Days - clientsCreatedPrev7Days) / clientsCreatedPrev7Days) * 100 
+    : (clientsCreatedLast7Days > 0 ? 100 : 0);
+
+  // 4. Ticket promedio hoy vs promedio semanal
+  const verifiedTodayBookings = todayBookings.filter(b => b.payment_status === "verified");
+  const averageTicketToday = verifiedTodayBookings.length 
+    ? revenueToday / verifiedTodayBookings.length 
+    : 0;
+  const verifiedWeekBookings = bookings.filter(b => b.payment_status === "verified" && b.appointment_date >= weekStartKey && b.appointment_date <= todayKey);
+  const averageTicketWeek = verifiedWeekBookings.length 
+    ? revenueWeek / verifiedWeekBookings.length 
+    : 0;
+  const ticketTrend = averageTicketWeek > 0 
+    ? ((averageTicketToday - averageTicketWeek) / averageTicketWeek) * 100 
+    : 0;
+
   const proKpis = [
     {
       title: "Ganancias hoy",
       value: `$${revenueToday.toLocaleString()}`,
-      caption: `Semana $${revenueWeek.toLocaleString()}`,
+      caption: `Promedio 7d: $${Math.round(avgRevenuePrev7).toLocaleString()}`,
+      trend: revenueTrend,
       icon: <Wallet className="h-5 w-5" />,
       tone: "from-emerald-400/25 to-cyan-400/10",
       glow: "#22c55e",
@@ -499,7 +555,8 @@ export function AdminPanel() {
     {
       title: "Citas del día",
       value: todayBookings.length,
-      caption: `${confirmedBookings} confirmadas activas`,
+      caption: `Promedio 7d: ${avgBookingsPrev7.toFixed(1)}`,
+      trend: bookingsTrend,
       icon: <Calendar className="h-5 w-5" />,
       tone: "from-sky-400/25 to-primary/10",
       glow: "#6366f1",
@@ -507,7 +564,8 @@ export function AdminPanel() {
     {
       title: "Clientes",
       value: clients.length,
-      caption: `${detectedCustomers} detectados`,
+      caption: `+${clientsCreatedLast7Days} esta semana`,
+      trend: clientsTrend,
       icon: <Users className="h-5 w-5" />,
       tone: "from-violet-400/25 to-fuchsia-400/10",
       glow: "#a855f7",
@@ -515,7 +573,8 @@ export function AdminPanel() {
     {
       title: "Ticket promedio",
       value: `$${averageTicket.toLocaleString()}`,
-      caption: `Mes $${revenueMonth.toLocaleString()}`,
+      caption: `Promedio sem: $${Math.round(averageTicketWeek).toLocaleString()}`,
+      trend: ticketTrend,
       icon: <TrendingUp className="h-5 w-5" />,
       tone: "from-rose-400/25 to-orange-400/10",
       glow: "#f97316",
@@ -541,6 +600,118 @@ export function AdminPanel() {
     clearAuthSession();
     toast.success("Sesion cerrada.");
     navigate("/admin/login");
+  };
+
+  const downloadCSV = (filename: string, headers: string[], data: string[][]) => {
+    const csvContent = "\uFEFF" + [
+      headers.join(","),
+      ...data.map(row => 
+        row.map(val => {
+          const formatted = String(val || "").replace(/"/g, '""');
+          return formatted.includes(",") || formatted.includes("\n") || formatted.includes('"')
+            ? `"${formatted}"`
+            : formatted;
+        }).join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportBookingsToCSV = () => {
+    const headers = ["ID", "Cliente", "Telefono", "Fecha", "Hora", "Servicio", "Barbero", "Estado", "Metodo Pago", "Referencia", "Estado Pago", "Notas"];
+    const rows = filteredBookings.map(b => [
+      String(b.id),
+      b.customer_name,
+      b.customer_phone,
+      b.appointment_date,
+      b.start_time,
+      b.service_name || "",
+      b.barber_name || "",
+      statusLabels[b.status] || b.status,
+      b.payment_method || "",
+      b.payment_reference || "",
+      paymentLabels[b.payment_status] || b.payment_status,
+      b.notes || ""
+    ]);
+    downloadCSV(`citas-infinitybarber-${Date.now()}.csv`, headers, rows);
+    toast.success("CSV de reservas exportado correctamente.");
+  };
+
+  const exportClientsToCSV = () => {
+    const headers = ["ID", "Nombre", "Telefono", "Email", "Edad", "Tipo Cabello", "Estilo Favorito", "Puntos Fidelidad", "Ultima Visita", "Notas"];
+    const rows = filteredClients.map(c => [
+      String(c.id),
+      c.name,
+      c.phone,
+      c.email || "",
+      c.age ? String(c.age) : "",
+      c.hair_type || "",
+      c.favorite_style || "",
+      String(c.loyalty_points),
+      c.last_visit || "",
+      c.notes || ""
+    ]);
+    downloadCSV(`clientes-infinitybarber-${Date.now()}.csv`, headers, rows);
+    toast.success("CSV de clientes exportado correctamente.");
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const backupData = await apiFetch<any>("/api/admin/backup/export");
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `backup-infinitybarber-${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Copia de seguridad exportada correctamente.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Fallo al exportar copia de seguridad.");
+    }
+  };
+
+  const handleImportBackup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!backupFile) {
+      toast.error("Selecciona un archivo JSON de copia de seguridad.");
+      return;
+    }
+    if (confirmText !== "RESTAURAR") {
+      toast.error("Confirma escribiendo 'RESTAURAR' en el cuadro de texto.");
+      return;
+    }
+
+    setIsRestoring(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        const res = await apiFetch<any>("/api/admin/backup/import", {
+          method: "POST",
+          body: JSON.stringify(json),
+        });
+        toast.success(res.message || "Copia de seguridad restaurada correctamente.");
+        setBackupFile(null);
+        setConfirmText("");
+        await loadData();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al restaurar el respaldo.");
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    reader.readAsText(backupFile);
   };
 
   const handleAdminAvatarChange = (file?: File) => {
@@ -1112,24 +1283,28 @@ export function AdminPanel() {
                   {/* Charts Grid - Level 1 */}
                   <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <ProChartPanel title="Actividad de los últimos 7 días" action="En vivo" glow="#06b6d4">
-                      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 md:grid-cols-7">
-                        {chartDays.map((day, index) => (
-                          <div key={day.key} className="group flex flex-col items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 transition-all hover:-translate-y-1 hover:border-primary/30 hover:bg-white/[0.06]">
-                            <p className="text-[11px] font-bold uppercase text-white/45">{day.label}</p>
-                            <div className="relative flex h-28 w-full items-end justify-center">
-                              <div
-                                className="w-full max-w-[2.5rem] rounded-t-xl bg-gradient-to-t from-primary/80 to-cyan-400/60 transition-all duration-500 group-hover:shadow-[0_0_24px_rgba(99,102,241,0.55)]"
-                                style={{ height: `${(day.reservations / maxChartReservations) * 100}%`, minHeight: day.reservations ? "12%" : "4%" }}
-                              />
-                              <div
-                                className="absolute bottom-0 left-1/2 h-1 w-[70%] -translate-x-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-                                style={{ boxShadow: `0 0 16px ${chartColors[index % chartColors.length]}` }}
-                              />
-                            </div>
-                            <p className="text-sm font-black text-white">{day.reservations}</p>
-                            <p className="text-[10px] font-semibold text-emerald-400/80">${day.revenue.toLocaleString()}</p>
-                          </div>
-                        ))}
+                      <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={chartDays} margin={{ top: 10, right: -10, left: -10, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="glowRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0.0} />
+                              </linearGradient>
+                              <linearGradient id="glowReservationsGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} />
+                            <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickFormatter={(value) => `$${value >= 1000 ? (value / 1000) + 'K' : value}`} />
+                            <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} />
+                            <Tooltip content={<ProMultiTooltip />} />
+                            <Bar yAxisId="right" dataKey="reservations" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
+                            <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={3} fill="url(#glowRevenueGradient)" dot={{ r: 4, fill: "#ffffff", stroke: "#22c55e", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#0b0b14", stroke: "#22c55e", strokeWidth: 2 }} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
                       </div>
                     </ProChartPanel>
 
@@ -1295,7 +1470,7 @@ export function AdminPanel() {
                         </h3>
                         <p className="text-xs text-white/50 mt-1">Monitorea los comprobantes de pago de Nequi, confirma citas y ajusta horarios.</p>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px] lg:w-[560px]">
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_130px] lg:w-[700px]">
                         <div className="relative">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
                           <ModernInput
@@ -1314,6 +1489,14 @@ export function AdminPanel() {
                             ))}
                           </ModernSelect>
                         </div>
+                        <Button 
+                          onClick={exportBookingsToCSV} 
+                          variant="outline"
+                          className="h-11 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs font-bold px-4 flex items-center gap-2 justify-center"
+                        >
+                          <Upload className="h-4 w-4 rotate-180" />
+                          Exportar CSV
+                        </Button>
                       </div>
                     </div>
 
@@ -1462,18 +1645,29 @@ export function AdminPanel() {
                           <div className="p-1.5 rounded-lg bg-primary/20"><Users className="h-5 w-5 text-primary" /></div>
                           Clientes
                         </h3>
-                        <Button 
-                          onClick={() => {
-                            setClientForm(emptyClientForm);
-                            setClientFile(null);
-                            setIsClientFormActive(true);
-                          }}
-                          size="sm"
-                          className="bg-primary hover:bg-primary/80 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 px-3 py-2"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          Nuevo
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={exportClientsToCSV} 
+                            variant="outline"
+                            size="sm"
+                            className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white font-bold rounded-xl text-xs flex items-center gap-1.5 px-3 py-2"
+                          >
+                            <Upload className="h-3.5 w-3.5 rotate-180" />
+                            Exportar
+                          </Button>
+                          <Button 
+                            onClick={() => {
+                              setClientForm(emptyClientForm);
+                              setClientFile(null);
+                              setIsClientFormActive(true);
+                            }}
+                            size="sm"
+                            className="bg-primary hover:bg-primary/80 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 px-3 py-2"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Nuevo
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="relative">
@@ -2057,6 +2251,7 @@ export function AdminPanel() {
                       { id: "audit", label: "Registro de Auditoría", icon: <Activity className="h-4.5 w-4.5" /> },
                       { id: "chats", label: "Chats de IA", icon: <MessageCircle className="h-4.5 w-4.5" /> },
                       { id: "system", label: "Estado del Servidor", icon: <Terminal className="h-4.5 w-4.5" /> },
+                      { id: "backup", label: "Copia de Seguridad", icon: <Save className="h-4.5 w-4.5" /> },
                     ].map((item) => (
                       <button
                         key={item.id}
@@ -2422,6 +2617,84 @@ export function AdminPanel() {
                       </div>
                     </DashboardPanel>
                   )}
+
+                  {!isConsoleLoading && activeConsoleTab === "backup" && (
+                    <DashboardPanel title="Copia de Seguridad y Restauración" icon={<Database className="h-5 w-5 text-primary" />}>
+                      <div className="grid gap-6 md:grid-cols-2">
+                        {/* Export Card */}
+                        <div className="rounded-2xl border border-white/10 bg-[#0e0e18]/40 p-5 space-y-4 flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                              <Upload className="h-4.5 w-4.5 text-emerald-400 rotate-180" /> Exportar Base de Datos
+                            </h4>
+                            <p className="text-xs text-white/50 leading-relaxed">
+                              Descarga una copia completa de toda la información de la barbería (clientes, citas, servicios, profesionales, galería, etc.) en un archivo en formato JSON.
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleExportBackup}
+                            className="w-full mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <Upload className="h-4 w-4 rotate-180" />
+                            DESCARGAR RESPALDO JSON
+                          </button>
+                        </div>
+
+                        {/* Import Card */}
+                        <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.02] p-5 space-y-4">
+                          <h4 className="font-bold text-red-400 text-sm flex items-center gap-2">
+                            <Shield className="h-4.5 w-4.5 text-red-400" /> Restaurar Base de Datos
+                          </h4>
+                          
+                          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3.5">
+                            <p className="text-[11px] font-semibold text-red-300 leading-relaxed">
+                              ADVERTENCIA CRÍTICA: Restaurar un respaldo reemplazará COMPLETAMENTE todas las tablas de la base de datos actual. Escribe "RESTAURAR" abajo y selecciona el archivo JSON para proceder.
+                            </p>
+                          </div>
+
+                          <form onSubmit={handleImportBackup} className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40">Archivo de Respaldo (.json)</label>
+                              <div className="flex items-center gap-3">
+                                <label className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/15 bg-white/[0.01] hover:bg-white/[0.03] transition-colors rounded-xl px-4 py-6 cursor-pointer text-center">
+                                  <Database className="h-6 w-6 text-white/30 mb-2" />
+                                  <span className="text-xs text-white/70 font-semibold truncate max-w-xs">
+                                    {backupFile ? backupFile.name : "Seleccionar respaldo JSON"}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={(e) => setBackupFile(e.target.files?.[0] ?? null)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40">Confirmar Acción Peligrosa</label>
+                              <ModernInput
+                                type="text"
+                                placeholder="Escribe 'RESTAURAR' para confirmar"
+                                value={confirmText}
+                                onChange={(e: any) => setConfirmText(e.target.value)}
+                                className="font-mono text-center tracking-widest text-red-400 border-red-500/20 focus:border-red-500 focus:ring-red-500/50"
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={isRestoring || confirmText !== "RESTAURAR" || !backupFile}
+                              className="w-full rounded-xl bg-red-600 disabled:bg-white/5 disabled:text-white/20 disabled:cursor-not-allowed py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-red-600/10 hover:bg-red-500 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              {isRestoring ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                              RESTAURAR BASE DE DATOS
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </DashboardPanel>
+                  )}
                 </div>
               )}
 
@@ -2481,6 +2754,7 @@ function ProMetricCard({
   title,
   tone,
   value,
+  trend,
 }: {
   caption: string;
   delay?: number;
@@ -2489,6 +2763,7 @@ function ProMetricCard({
   title: string;
   tone: string;
   value: ReactNode;
+  trend?: number;
 }) {
   return (
     <div
@@ -2497,8 +2772,25 @@ function ProMetricCard({
     >
       <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-br ${tone} opacity-80 transition-opacity group-hover:opacity-100`} />
       <div className="relative flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-white/40">{title}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">{title}</p>
+            {trend !== undefined && (
+              trend > 0 ? (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                  +{trend.toFixed(1)}%
+                </span>
+              ) : trend < 0 ? (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                  {trend.toFixed(1)}%
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/50">
+                  0.0%
+                </span>
+              )
+            )}
+          </div>
           <p className="mt-3 text-3xl font-black text-white">{value}</p>
           <p className="mt-2 text-xs font-medium text-white/45">{caption}</p>
         </div>
@@ -2506,6 +2798,30 @@ function ProMetricCard({
           {icon}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProMultiTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const revenueItem = payload.find((p: any) => p.dataKey === "revenue");
+  const reservationsItem = payload.find((p: any) => p.dataKey === "reservations");
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#080812]/95 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl space-y-1">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">{payload[0].payload.label || payload[0].payload.key}</p>
+      {revenueItem && (
+        <p className="text-xs font-semibold text-emerald-400 flex items-center justify-between gap-4">
+          <span>Ingresos:</span>
+          <span className="font-bold">${Number(revenueItem.value).toLocaleString()}</span>
+        </p>
+      )}
+      {reservationsItem && (
+        <p className="text-xs font-semibold text-indigo-400 flex items-center justify-between gap-4">
+          <span>Reservas:</span>
+          <span className="font-bold">{reservationsItem.value} citas</span>
+        </p>
+      )}
     </div>
   );
 }

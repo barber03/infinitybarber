@@ -825,6 +825,131 @@ app.post("/api/admin/query", authenticate, requireRole("admin"), (req, res) => {
   }
 });
 
+// 5.1. Exportar base de datos completa a JSON
+app.get("/api/admin/backup/export", authenticate, requireRole("admin"), async (req, res) => {
+  try {
+    logAuditEvent("BACKUP_EXPORT", "Admin requested full database JSON backup export", req);
+    
+    const queryDb = (query) => new Promise((resolve, reject) => {
+      db.all(query, [], (err, rows) => err ? reject(err) : resolve(rows));
+    });
+
+    const backupData = {
+      services: await queryDb("SELECT * FROM services"),
+      profiles: await queryDb("SELECT * FROM profiles"),
+      gallery: await queryDb("SELECT * FROM gallery"),
+      clients: await queryDb("SELECT * FROM clients"),
+      client_users: await queryDb("SELECT * FROM client_users"),
+      appointments: await queryDb("SELECT * FROM appointments"),
+      barber_time_off: await queryDb("SELECT * FROM barber_time_off"),
+      barber_portfolio: await queryDb("SELECT * FROM barber_portfolio"),
+      user_notifications: await queryDb("SELECT * FROM user_notifications"),
+      appointment_change_requests: await queryDb("SELECT * FROM appointment_change_requests"),
+      audit_logs: await queryDb("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 1000")
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename=backup-infinitybarber-${Date.now()}.json`);
+    res.json(backupData);
+  } catch (error) {
+    console.error("Backup export failed:", error);
+    res.status(500).json({ error: "Fallo al exportar el respaldo: " + error.message });
+  }
+});
+
+// 5.2. Importar base de datos completa desde JSON
+app.post("/api/admin/backup/import", authenticate, requireRole("admin"), async (req, res) => {
+  const data = req.body;
+  if (!data || typeof data !== "object") {
+    return res.status(400).json({ error: "Payload de respaldo inválido" });
+  }
+
+  const requiredTables = ["services", "profiles", "gallery", "clients", "client_users", "appointments"];
+  for (const table of requiredTables) {
+    if (!data[table] || !Array.isArray(data[table])) {
+      return res.status(400).json({ error: `Falta la tabla requerida: ${table}` });
+    }
+  }
+
+  logAuditEvent("BACKUP_IMPORT", "Admin initiated full database JSON backup import", req);
+
+  try {
+    // 1. Limpiar tablas en orden inverso de dependencias
+    console.log("Import: Limpiando tablas de base de datos...");
+    await db.queryAsync("DELETE FROM appointment_change_requests");
+    await db.queryAsync("DELETE FROM user_notifications");
+    await db.queryAsync("DELETE FROM barber_portfolio");
+    await db.queryAsync("DELETE FROM barber_time_off");
+    await db.queryAsync("DELETE FROM appointments");
+    await db.queryAsync("DELETE FROM client_users");
+    await db.queryAsync("DELETE FROM clients");
+    await db.queryAsync("DELETE FROM gallery");
+    await db.queryAsync("DELETE FROM profiles");
+    await db.queryAsync("DELETE FROM services");
+    await db.queryAsync("DELETE FROM audit_logs");
+    
+    // Función auxiliar para insertar
+    const insertRows = async (tableName, columns, rows) => {
+      for (const row of rows) {
+        const vals = [];
+        const placeholders = [];
+        columns.forEach((col) => {
+          let val = row[col];
+          if (col === "specialties" || col === "work_schedule") {
+            if (val && typeof val === "object") {
+              val = JSON.stringify(val);
+            }
+          }
+          vals.push(val === undefined ? null : val);
+          placeholders.push("?");
+        });
+        const sql = `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${placeholders.join(", ")})`;
+        await db.queryAsync(sql, vals);
+      }
+      
+      // Intentar resetear secuencias en PostgreSQL si corresponde
+      try {
+        if (rows.length > 0) {
+          await db.queryAsync(
+            `SELECT setval(pg_get_serial_sequence('${tableName}', 'id'), coalesce(max(id), 1)) FROM ${tableName}`
+          );
+        }
+      } catch (seqErr) {
+        console.warn(`No se pudo resetear secuencia para ${tableName} (puede que sea SQLite local)`);
+      }
+    };
+
+    // 2. Insertar registros en orden topológico
+    await insertRows("services", ["id", "name", "price", "duration_minutes", "created_at", "image_url"], data.services);
+    await insertRows("profiles", ["id", "full_name", "username", "role", "avatar_url", "description", "password_hash", "created_at", "specialties", "commission_rate", "work_schedule"], data.profiles);
+    await insertRows("gallery", ["id", "url", "created_at"], data.gallery);
+    await insertRows("clients", ["id", "name", "phone", "email", "age", "hair_type", "favorite_style", "last_visit", "notes", "avatar_url", "loyalty_points", "created_at"], data.clients);
+    await insertRows("client_users", ["id", "name", "phone", "pin_hash", "created_at"], data.client_users);
+    await insertRows("appointments", ["id", "customer_name", "customer_phone", "service_id", "barber_id", "appointment_date", "start_time", "status", "payment_method", "payment_reference", "payment_status", "notes", "ai_recommendation", "created_at", "payment_screenshot"], data.appointments);
+    
+    if (data.barber_time_off && Array.isArray(data.barber_time_off)) {
+      await insertRows("barber_time_off", ["id", "barber_id", "off_date", "reason", "created_at"], data.barber_time_off);
+    }
+    if (data.barber_portfolio && Array.isArray(data.barber_portfolio)) {
+      await insertRows("barber_portfolio", ["id", "barber_id", "url", "caption", "created_at"], data.barber_portfolio);
+    }
+    if (data.user_notifications && Array.isArray(data.user_notifications)) {
+      await insertRows("user_notifications", ["id", "client_user_id", "type", "message", "is_read", "created_at"], data.user_notifications);
+    }
+    if (data.appointment_change_requests && Array.isArray(data.appointment_change_requests)) {
+      await insertRows("appointment_change_requests", ["id", "appointment_id", "client_user_id", "requested_date", "requested_time", "reason", "status", "admin_notes", "created_at"], data.appointment_change_requests);
+    }
+    if (data.audit_logs && Array.isArray(data.audit_logs)) {
+      await insertRows("audit_logs", ["id", "action", "details", "ip_address", "created_at"], data.audit_logs.slice(0, 1000));
+    }
+
+    res.json({ success: true, message: "Base de datos restaurada correctamente a partir del respaldo." });
+  } catch (error) {
+    console.error("Backup import failed:", error);
+    res.status(500).json({ error: "Fallo al restaurar el respaldo: " + error.message });
+  }
+});
+
 app.get("/api/barber/appointments", authenticate, requireRole("barber"), (req, res) => {
   db.all(
     `${appointmentSelect}
