@@ -58,7 +58,7 @@ export function BarbersList() {
             El <span className="bg-gradient-to-r from-primary via-secondary to-white bg-clip-text text-transparent">Escuadrón</span>
           </h2>
           <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/50 sm:text-xl">
-            Profesionales que elevan el estándar de Infinity Barber en cada corte, barba y detalle final.
+            Profesionales que elevan el estándar de Infinity Barber App en cada corte, barba y detalle final.
           </p>
         </div>
 

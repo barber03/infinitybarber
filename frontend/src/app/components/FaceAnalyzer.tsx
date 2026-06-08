@@ -330,7 +330,7 @@ export default function FaceAnalyzer({ onSelectAiService }: { onSelectAiService?
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10">
                  <Scissors className="h-10 w-10 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-white">IA Infinity Barber</h3>
+              <h3 className="text-2xl font-bold text-white">IA Infinity Barber App</h3>
               <p className="text-white/60 text-sm leading-relaxed">
                 Ponte frente a la cámara o sube una fotografía, asegúrate de tener buena luz y presiona el botón para descubrir tu perfil facial y recibir recomendaciones personalizadas.
               </p>

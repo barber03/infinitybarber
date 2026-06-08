@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'nequi-qr.jpeg', 'icons.svg'],
       manifest: {
-        name: 'Infinity Barber',
-        short_name: 'InfinityBarber',
-        description: 'Reserva tu cita en Infinity Barber',
+        name: 'Infinity Barber App',
+        short_name: 'InfinityBarberApp',
+        description: 'Reserva tu cita en Infinity Barber App',
         theme_color: '#06060a',
         background_color: '#06060a',
         display: 'standalone',

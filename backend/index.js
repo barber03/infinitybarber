@@ -306,7 +306,7 @@ app.post("/api/payments/upload", paymentUpload.single("image"), (req, res) => {
 });
 
 app.get("/", (_req, res) => {
-  res.send("Infinity Barber API funcionando correctamente 🚀");
+  res.send("Infinity Barber App API funcionando correctamente 🚀");
 });
 
 app.get("/api/health", (_req, res) => {
@@ -401,7 +401,7 @@ app.post("/api/chat", async (req, res) => {
     let currentMessages = [
       {
         role: "system",
-        content: `Eres Infinity, la IA de Infinity Barber. Tu función es atender preguntas y agendar citas eficientemente.
+        content: `Eres Infinity, la IA de Infinity Barber App. Tu función es atender preguntas y agendar citas eficientemente.
 Servicios (IDs): ${servicesListStr}.
 Barberos (IDs): ${barbersListStr}.
 Horarios: Lunes a Sábado, 09:00 a 18:00. Hoy es ${sysDate}.

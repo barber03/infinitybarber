@@ -166,7 +166,7 @@ export function AIAssistant() {
             </div>
             <div>
               <h3 className="text-sm font-bold">Infinity Assistant</h3>
-              <p className="text-xs opacity-80">En línea • Infinity Barber</p>
+              <p className="text-xs opacity-80">En línea • Infinity Barber App</p>
             </div>
           </div>
 

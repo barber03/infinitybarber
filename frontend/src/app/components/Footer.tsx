@@ -28,7 +28,7 @@ export function Footer() {
             </p>
             <div className="flex gap-3">
               <a
-                href={`https://wa.me/${BUSINESS_WHATSAPP}?text=${encodeURIComponent("Hola, quiero información sobre Infinity Barber.")}`}
+                href={`https://wa.me/${BUSINESS_WHATSAPP}?text=${encodeURIComponent("Hola, quiero información sobre Infinity Barber App.")}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all duration-300"
@@ -107,7 +107,7 @@ export function Footer() {
               </li>
               <li className="pt-2">
                 <a
-                  href={`https://wa.me/${BUSINESS_WHATSAPP}?text=${encodeURIComponent("Hola, quiero reservar una cita en Infinity Barber.")}`}
+                  href={`https://wa.me/${BUSINESS_WHATSAPP}?text=${encodeURIComponent("Hola, quiero reservar una cita en Infinity Barber App.")}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-3 hover:text-primary transition-colors"
@@ -134,7 +134,7 @@ export function Footer() {
                   allowFullScreen={false}
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
-                  title="Mapa de ubicación de Infinity Barber"
+                  title="Mapa de ubicación de Infinity Barber App"
                 ></iframe>
               </div>
               <a 
@@ -168,7 +168,7 @@ export function Footer() {
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 border-t border-white/5 pt-8 text-xs text-muted-foreground md:flex-row md:items-center">
-          <p>&copy; {new Date().getFullYear()} Infinity Barber. Reservas y atención por canales digitales.</p>
+          <p>&copy; {new Date().getFullYear()} Infinity Barber App. Reservas y atención por canales digitales.</p>
           <div className="flex gap-4">
             <a href={`https://wa.me/${BUSINESS_WHATSAPP}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">WhatsApp</a>
             <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Instagram</a>

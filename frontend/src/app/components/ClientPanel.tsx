@@ -1104,7 +1104,7 @@ export function ClientPanel() {
             </button>
             <Link to="/" className="flex items-center gap-2">
               <Scissors className="h-5 w-5 text-primary" />
-              <span className="text-sm font-bold text-white hidden sm:block">Infinity Barber</span>
+              <span className="text-sm font-bold text-white hidden sm:block">Infinity Barber App</span>
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -1248,7 +1248,7 @@ export function ClientPanel() {
               <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-r from-primary/10 via-purple-500/5 to-transparent p-6 sm:p-8 shadow-xl backdrop-blur-xl mb-6">
                 <div className="absolute right-0 top-0 h-32 w-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
                 <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">¡Hola, {session.user.name.split(" ")[0]}! 👋</h1>
-                <p className="text-sm text-muted-foreground mt-2 max-w-xl">Bienvenido a tu panel de cliente premium en Infinity Barber. Aquí puedes agendar tus citas, hacer solicitudes de cambio de horario y llevar el control de tus visitas y puntos de fidelización.</p>
+                <p className="text-sm text-muted-foreground mt-2 max-w-xl">Bienvenido a tu panel de cliente premium en Infinity Barber App. Aquí puedes agendar tus citas, hacer solicitudes de cambio de horario y llevar el control de tus visitas y puntos de fidelización.</p>
               </div>
             )}
             {renderSection()}

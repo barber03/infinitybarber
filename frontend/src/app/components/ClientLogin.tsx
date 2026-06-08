@@ -80,7 +80,7 @@ export function ClientLogin() {
             <Scissors className="h-4.5 w-4.5 text-primary group-hover:rotate-12 transition-transform" />
           </div>
           <span className="text-sm font-bold text-white/70 group-hover:text-white transition-colors">
-            Infinity Barber
+            Infinity Barber App
           </span>
         </Link>
         <Link
@@ -276,7 +276,7 @@ export function ClientLogin() {
             </p>
             <div className="flex flex-col gap-2">
               <a
-                href={`https://wa.me/573127891889?text=Hola,%20olvid%C3%A9%20mi%20PIN%20de%20acceso%20para%20Infinity%20Barber.%20Mi%20n%C3%BAmero%20de%20tel%C3%A9fono%20es%3A%20`}
+                href={`https://wa.me/573127891889?text=Hola,%20olvid%C3%A9%20mi%20PIN%20de%20acceso%20para%20Infinity%20Barber%20App.%20Mi%20n%C3%BAmero%20de%20tel%C3%A9fono%20es%3A%20`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full rounded-xl bg-green-600 hover:bg-green-700 py-3 text-xs font-bold text-white text-center transition-all cursor-pointer flex items-center justify-center gap-2"

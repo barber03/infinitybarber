@@ -1,7 +1,7 @@
 {
   "name": "barber-backend",
   "version": "1.0.0",
-  "description": "SQLite Backend for Infinity Barber",
+  "description": "SQLite Backend for Infinity Barber App",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
