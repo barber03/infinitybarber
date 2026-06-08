@@ -105,7 +105,6 @@ type AdminTab = "dashboard" | "reservas" | "clientes" | "servicios" | "equipo" |
 
 const tabs: Array<{ id: AdminTab; label: string; icon: ReactNode }> = [
   { id: "dashboard", label: "Tablero Principal", icon: <LayoutDashboard className="h-5 w-5" /> },
-  { id: "reservas", label: "Citas y Reservas", icon: <Calendar className="h-5 w-5" /> },
   { id: "clientes", label: "Clientes", icon: <User className="h-5 w-5" /> },
   { id: "servicios", label: "Servicios", icon: <Briefcase className="h-5 w-5" /> },
   { id: "equipo", label: "Equipo", icon: <Users className="h-5 w-5" /> },
@@ -239,6 +238,10 @@ export function AdminPanel() {
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isClientFormActive, setIsClientFormActive] = useState(false);
   const [serviceEditingId, setServiceEditingId] = useState<number | null>(null);
+  const [activeDashboardTab, setActiveDashboardTab] = useState<"overview" | "financials" | "team" | "clients">("overview");
+  const [selectedBarberId, setSelectedBarberId] = useState<number | null>(null);
+  const [isBarberFormActive, setIsBarberFormActive] = useState(false);
+  const [barberSearch, setBarberSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -977,6 +980,8 @@ export function AdminPanel() {
       commission_rate: String(barber.commission_rate ?? 15),
     });
     setBarberFile(null);
+    setSelectedBarberId(barber.id);
+    setIsBarberFormActive(true);
   };
 
   const uploadBarberFile = async () => {
@@ -1027,6 +1032,7 @@ export function AdminPanel() {
 
       setBarberForm(emptyBarberForm);
       setBarberFile(null);
+      setIsBarberFormActive(false);
       await loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo guardar el barbero.");
@@ -1037,6 +1043,7 @@ export function AdminPanel() {
     try {
       await apiFetch(`/api/admin/barbers/${barberId}`, { method: "DELETE" });
       toast.success("Barbero eliminado.");
+      if (selectedBarberId === barberId) setSelectedBarberId(null);
       await loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo eliminar el barbero.");
@@ -1211,9 +1218,8 @@ export function AdminPanel() {
              }} className="hidden h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10 hover:text-white active:scale-95 sm:flex">
                 <RefreshCw className="h-5 w-5" />
              </button>
-             <button title="Click para scrollear a citas pendientes" onClick={() => {
-                const list = document.getElementById("reservas-list");
-                if (list) list.scrollIntoView({ behavior: "smooth" });
+             <button title="Ver citas del equipo" onClick={() => {
+                setActiveTab("equipo");
              }} className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-all duration-300 hover:bg-white/10 hover:text-white hover:scale-105 active:scale-95 cursor-pointer">
                 <Bell className="h-5 w-5" />
                 {pendingBookings > 0 && (
@@ -1280,359 +1286,263 @@ export function AdminPanel() {
                     ))}
                   </div>
 
-                  {/* Charts Grid - Level 1 */}
-                  <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                    <ProChartPanel title="Actividad de los últimos 7 días" action="En vivo" glow="#06b6d4">
-                      <div className="h-72 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartDays} margin={{ top: 10, right: -10, left: -10, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="glowRevenueGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0.0} />
-                              </linearGradient>
-                              <linearGradient id="glowReservationsGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} />
-                            <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickFormatter={(value) => `$${value >= 1000 ? (value / 1000) + 'K' : value}`} />
-                            <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} />
-                            <Tooltip content={<ProMultiTooltip />} />
-                            <Bar yAxisId="right" dataKey="reservations" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
-                            <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={3} fill="url(#glowRevenueGradient)" dot={{ r: 4, fill: "#ffffff", stroke: "#22c55e", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#0b0b14", stroke: "#22c55e", strokeWidth: 2 }} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </ProChartPanel>
-
-                    <ProChartPanel title="Ingresos Anuales" action="Año" glow="#a855f7">
-                      <div className="h-60">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={annualRevenueData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.42} />
-                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.02} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 12 }} />
-                            <YAxis tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }} tickFormatter={(value) => `$${Number(value) / 1000}K`} />
-                            <Tooltip content={<ProTooltip label="Ingresos" formatter={(value: any) => `$${Number(value).toLocaleString()}`} />} />
-                            <Area type="monotone" dataKey="ingresos" stroke="#a855f7" strokeWidth={3} fill="url(#revenueGradient)" dot={{ r: 4, fill: "#ffffff", stroke: "#a855f7", strokeWidth: 2 }} activeDot={{ r: 7, fill: "#0b0b14", stroke: "#a855f7", strokeWidth: 3 }} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </ProChartPanel>
+                  {/* Sub-tabs Selector for Dashboard */}
+                  <div className="flex flex-wrap gap-2 border-b border-white/5 pb-4">
+                    {[
+                      { id: "overview", label: "Vista General" },
+                      { id: "financials", label: "Rendimiento Financiero" },
+                      { id: "team", label: "Rendimiento del Equipo" },
+                      { id: "clients", label: "Análisis de Clientes" },
+                    ].map((subtab) => (
+                      <button
+                        key={subtab.id}
+                        type="button"
+                        onClick={() => setActiveDashboardTab(subtab.id as any)}
+                        className={`rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                          activeDashboardTab === subtab.id
+                            ? "bg-primary/20 text-white ring-1 ring-primary/50 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+                            : "text-white/60 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {subtab.label}
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Charts Grid - Level 2 */}
-                  <div className="grid gap-6 xl:grid-cols-3">
-                    <ProChartPanel title="Reservas por Mes" action="Año" glow="#06b6d4">
-                      <div className="h-60">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={annualRevenueData} margin={{ top: 14, right: 8, left: -18, bottom: 0 }}>
-                            <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} />
-                            <YAxis tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} />
-                            <Tooltip content={<ProTooltip label="Reservas" />} />
-                            <Bar dataKey="reservas" radius={[10, 10, 4, 4]} fill="#06b6d4" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </ProChartPanel>
-
-                    <ProChartPanel title="Edad de Clientes" action="Distribución" glow="#22c55e">
-                      <div className="relative h-60">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={ageChartData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="rgba(255,255,255,0.06)" strokeWidth={4}>
-                              {ageChartData.map((entry, index) => (
-                                <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip content={<ProTooltip label="Clientes" />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-2xl font-black text-white">100%</p>
-                            <p className="text-[10px] font-semibold uppercase text-white/40">Clientes</p>
-                          </div>
+                  {/* Vista General (Overview) */}
+                  {activeDashboardTab === "overview" && (
+                    <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr] animate-in fade-in duration-300">
+                      <ProChartPanel title="Actividad de los últimos 7 días" action="En vivo" glow="#06b6d4">
+                        <div className="h-72 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={chartDays} margin={{ top: 10, right: -10, left: -10, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="glowRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+                                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0.0} />
+                                </linearGradient>
+                                <linearGradient id="glowReservationsGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} />
+                              <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickFormatter={(value) => `$${value >= 1000 ? (value / 1000) + 'K' : value}`} />
+                              <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} />
+                              <Tooltip content={<ProMultiTooltip />} />
+                              <Bar yAxisId="right" dataKey="reservations" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
+                              <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={3} fill="url(#glowRevenueGradient)" dot={{ r: 4, fill: "#ffffff", stroke: "#22c55e", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#0b0b14", stroke: "#22c55e", strokeWidth: 2 }} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
                         </div>
-                      </div>
-                    </ProChartPanel>
+                      </ProChartPanel>
 
-                    <ProChartPanel title="Estado de Pagos" action="Distribución" glow="#f97316">
-                      <div className="relative h-60">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={paymentStatusData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="rgba(255,255,255,0.06)" strokeWidth={4}>
-                              {paymentStatusData.map((entry, index) => (
-                                <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip content={<ProTooltip label="Pagos" />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-2xl font-black text-white">{bookings.length}</p>
-                            <p className="text-[10px] font-semibold uppercase text-white/35">Total</p>
-                          </div>
-                        </div>
-                      </div>
-                    </ProChartPanel>
-                  </div>
-
-                  {/* Summary Lists Grid */}
-                  <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1.2fr]">
-                    <ProChartPanel title="Servicios más Vendidos" action="Top 5" glow="#ec4899">
-                      <div className="space-y-3">
-                        {topServices.map((service, index) => (
-                          <div key={service.id} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 transition-all hover:-translate-y-0.5 hover:bg-white/[0.05]">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white" style={{ backgroundColor: chartColors[index % chartColors.length] }}>{index + 1}</span>
-                                <p className="truncate text-xs font-bold text-white">{service.name}</p>
+                      <ProChartPanel title="Próximas Citas" action={`${upcomingBookings.length} Activas`} glow="#6366f1">
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                          {upcomingBookings.slice(0, 4).map((booking) => (
+                            <div key={booking.id} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left transition-all hover:border-primary/35 hover:bg-white/[0.04]">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="rounded-lg bg-primary/12 px-2 py-0.5 text-[10px] font-bold text-primary">{booking.start_time}</span>
+                                <StatusBadge status={booking.status} />
                               </div>
-                              <span className="text-[10px] font-bold text-white/55">{service.sold} ventas</span>
+                              <p className="truncate text-xs font-bold text-white">{booking.customer_name}</p>
+                              <p className="text-[10px] text-white/45 mt-0.5">{booking.service_name}</p>
                             </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                              <div className="h-full rounded-full" style={{ width: `${(service.sold / maxTopServiceSales) * 100}%`, background: `linear-gradient(90deg, ${chartColors[index % chartColors.length]}, #ffffff99)` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ProChartPanel>
+                          ))}
+                          {upcomingBookings.length === 0 && <EmptyInsight text="No hay citas próximas." />}
+                        </div>
+                      </ProChartPanel>
+                    </div>
+                  )}
 
-                    <ProChartPanel title="Ocupación de Barberos" action="Hoy" glow="#22c55e">
-                      <div className="space-y-3">
-                        {barberOccupancy.map((barber, index) => (
-                          <div key={barber.id} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
-                            <div className="mb-2 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <img src={resolveAssetUrl(barber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg"} alt={barber.full_name} className="h-8 w-8 rounded-lg object-cover ring-2 ring-white/10" />
-                                <div>
-                                  <p className="text-xs font-bold text-white leading-none">{barber.full_name}</p>
-                                  <p className="text-[9px] text-white/40 mt-0.5">{barber.count} citas</p>
+                  {/* Rendimiento Financiero (Financials) */}
+                  {activeDashboardTab === "financials" && (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                        <ProChartPanel title="Ingresos Anuales" action="Año" glow="#a855f7">
+                          <div className="h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={annualRevenueData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.42} />
+                                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0.02} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 12 }} />
+                                <YAxis tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }} tickFormatter={(value) => `$${Number(value) / 1000}K`} />
+                                <Tooltip content={<ProTooltip label="Ingresos" formatter={(value: any) => `$${Number(value).toLocaleString()}`} />} />
+                                <Area type="monotone" dataKey="ingresos" stroke="#a855f7" strokeWidth={3} fill="url(#revenueGradient)" dot={{ r: 4, fill: "#ffffff", stroke: "#a855f7", strokeWidth: 2 }} activeDot={{ r: 7, fill: "#0b0b14", stroke: "#a855f7", strokeWidth: 3 }} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </ProChartPanel>
+
+                        <ProChartPanel title="Servicios más Vendidos" action="Top 5" glow="#ec4899">
+                          <div className="space-y-3">
+                            {topServices.map((service, index) => (
+                              <div key={service.id} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 transition-all hover:-translate-y-0.5 hover:bg-white/[0.05]">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white" style={{ backgroundColor: chartColors[index % chartColors.length] }}>{index + 1}</span>
+                                    <p className="truncate text-xs font-bold text-white">{service.name}</p>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-white/55">{service.sold} ventas</span>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                                  <div className="h-full rounded-full" style={{ width: `${(service.sold / maxTopServiceSales) * 100}%`, background: `linear-gradient(90deg, ${chartColors[index % chartColors.length]}, #ffffff99)` }} />
                                 </div>
                               </div>
-                              <span className="rounded-lg bg-white/[0.08] px-2 py-0.5 text-[10px] font-black text-white">{barber.percent}%</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                              <div className="h-full rounded-full" style={{ width: `${barber.percent}%`, background: `linear-gradient(90deg, ${chartColors[index % chartColors.length]}, #22c55e)` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ProChartPanel>
-
-                    <ProChartPanel title="Próximas Citas" action={`${upcomingBookings.length} Activas`} glow="#6366f1">
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                        {upcomingBookings.slice(0, 4).map((booking) => (
-                          <div key={booking.id} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left transition-all hover:border-primary/35 hover:bg-white/[0.04]">
-                            <div className="mb-2 flex items-center justify-between">
-                              <span className="rounded-lg bg-primary/12 px-2 py-0.5 text-[10px] font-bold text-primary">{booking.start_time}</span>
-                              <StatusBadge status={booking.status} />
-                            </div>
-                            <p className="truncate text-xs font-bold text-white">{booking.customer_name}</p>
-                            <p className="text-[10px] text-white/45 mt-0.5">{booking.service_name}</p>
-                          </div>
-                        ))}
-                        {upcomingBookings.length === 0 && <EmptyInsight text="No hay citas próximas." />}
-                      </div>
-                    </ProChartPanel>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "reservas" && (
-                <div className="space-y-6 animate-in fade-in duration-300">
-                  {/* Grid de estado rápido */}
-                  <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-                    <MiniStat label="Pagos por Verificar" value={pendingPayments} />
-                    <MiniStat label="Citas Pendientes" value={pendingBookings} />
-                    <MiniStat label="Citas Confirmadas" value={confirmedBookings} />
-                    <MiniStat label="Citas Completadas" value={completedBookings} />
-                  </div>
-
-                  {/* Tabla y Filtros */}
-                  <div className="space-y-6" id="reservas-list">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-primary/20"><Calendar className="h-5 w-5 text-primary" /></div>
-                          Gestión de Reservas
-                        </h3>
-                        <p className="text-xs text-white/50 mt-1">Monitorea los comprobantes de pago de Nequi, confirma citas y ajusta horarios.</p>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_130px] lg:w-[700px]">
-                        <div className="relative">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                          <ModernInput
-                            value={bookingSearch}
-                            onChange={(e: any) => setBookingSearch(e.target.value)}
-                            placeholder="Buscar cliente, barbero, servicio o referencia"
-                            className="pl-10"
-                          />
-                        </div>
-                        <div className="relative">
-                          <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                          <ModernSelect value={bookingStatusFilter} onChange={(e: any) => setBookingStatusFilter(e.target.value as any)} className="pl-10">
-                            <option value="all">Todos los estados</option>
-                            {statusOptions.map((status) => (
-                              <option key={status} value={status}>{statusLabels[status]}</option>
                             ))}
-                          </ModernSelect>
-                        </div>
-                        <Button 
-                          onClick={exportBookingsToCSV} 
-                          variant="outline"
-                          className="h-11 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white text-xs font-bold px-4 flex items-center gap-2 justify-center"
-                        >
-                          <Upload className="h-4 w-4 rotate-180" />
-                          Exportar CSV
-                        </Button>
+                          </div>
+                        </ProChartPanel>
+                      </div>
+
+                      <div className="grid gap-6">
+                        <ProChartPanel title="Reservas por Mes" action="Año" glow="#06b6d4">
+                          <div className="h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={annualRevenueData} margin={{ top: 14, right: 8, left: -18, bottom: 0 }}>
+                                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} />
+                                <YAxis tickLine={false} axisLine={false} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} />
+                                <Tooltip content={<ProTooltip label="Reservas" />} />
+                                <Bar dataKey="reservas" radius={[10, 10, 4, 4]} fill="#06b6d4" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </ProChartPanel>
                       </div>
                     </div>
+                  )}
 
-                    <div className="grid gap-4">
-                      {filteredBookings.map((booking, i) => (
-                        <div key={booking.id} style={{animationDelay: `${i * 30}ms`}} className="group relative flex flex-col gap-4 rounded-2xl border border-white/5 bg-gradient-to-r from-white/[0.02] to-white/[0.01] p-5 transition-all duration-300 ease-out hover:bg-white/[0.04] hover:border-primary/30 hover:shadow-[0_20px_40px_-20px_rgba(99,102,241,0.25)] hover:-translate-y-0.5 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-2">
-                          <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary to-purple-600 rounded-l-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-                          <div className="flex flex-col gap-2 pl-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-lg font-bold text-white group-hover:text-primary transition-colors duration-300">{booking.customer_name}</h4>
-                              <StatusBadge status={booking.status} />
-                              <PaymentBadge status={booking.payment_status} />
+                  {/* Rendimiento del Equipo (Team) */}
+                  {activeDashboardTab === "team" && (
+                    <div className="grid gap-6 md:grid-cols-2 animate-in fade-in duration-300">
+                      <ProChartPanel title="Ocupación de Barberos" action="Hoy" glow="#22c55e">
+                        <div className="space-y-3">
+                          {barberOccupancy.map((barber, index) => (
+                            <div key={barber.id} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <img src={resolveAssetUrl(barber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg"} alt={barber.full_name} className="h-8 w-8 rounded-lg object-cover ring-2 ring-white/10" />
+                                  <div>
+                                    <p className="text-xs font-bold text-white leading-none">{barber.full_name}</p>
+                                    <p className="text-[9px] text-white/40 mt-0.5">{barber.count} citas</p>
+                                  </div>
+                                </div>
+                                <span className="rounded-lg bg-white/[0.08] px-2 py-0.5 text-[10px] font-black text-white">{barber.percent}%</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                                <div className="h-full rounded-full" style={{ width: `${barber.percent}%`, background: `linear-gradient(90deg, ${chartColors[index % chartColors.length]}, #22c55e)` }} />
+                              </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/50">
-                              <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5"><Calendar className="h-3.5 w-3.5 text-blue-400" />{booking.appointment_date} / {booking.start_time}</span>
-                              <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5"><Briefcase className="h-3.5 w-3.5 text-purple-400" />{booking.service_name}</span>
-                              <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5"><Scissors className="h-3.5 w-3.5 text-emerald-400" />{booking.barber_name}</span>
-                              <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5 capitalize"><CreditCard className="h-3.5 w-3.5 text-indigo-400" />{booking.payment_method}</span>
-                              <span>Ref: <strong className="text-white/80 font-mono">{booking.payment_reference || "N/A"}</strong></span>
-                              {booking.payment_screenshot && (
-                                 <a href={resolveAssetUrl(booking.payment_screenshot)} target="_blank" rel="noreferrer" className="text-primary hover:underline hover:text-white transition-colors text-xs font-bold">Ver Comprobante</a>
-                               )}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 pl-1">
-                            {buildWhatsappConfirmationUrl(booking) && (
-                               <a href={buildWhatsappConfirmationUrl(booking)} target="_blank" rel="noreferrer" className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#25D366]/10 text-[#25D366] transition-all hover:bg-[#25D366] hover:text-white hover:scale-105" title="Notificar WhatsApp">
-                                  <MessageCircle className="h-4.5 w-4.5" />
-                                </a>
-                            )}
-                            <button onClick={() => updateBookingStatus(booking.id, "confirmed", "verified")} className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white hover:scale-105" title="Aprobar e ingresar puntos">
-                               <Sparkles className="h-4.5 w-4.5" />
-                            </button>
-                            <button onClick={() => updateBookingStatus(booking.id, "cancelled", booking.payment_status)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-all hover:bg-red-500 hover:text-white hover:scale-105" title="Cancelar cita">
-                               <XCircle className="h-4.5 w-4.5" />
-                            </button>
-                            <Button size="sm" variant="ghost" onClick={() => startBookingEdit(booking)} className="h-9 rounded-lg border border-white/10 bg-white/5 px-4 text-xs font-semibold text-white transition-all hover:bg-white hover:text-black hover:scale-105">Editar</Button>
-                            <button onClick={() => deleteBooking(booking.id)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/20 text-red-500 transition-all hover:bg-red-500 hover:text-white hover:border-transparent hover:scale-105" title="Eliminar registro">
-                               <Trash2 className="h-4.5 w-4.5" />
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                      {filteredBookings.length === 0 && (
-                        <div className="rounded-2xl border border-white/5 border-dashed p-12 text-center">
-                          <p className="text-white/40">No hay reservas que coincidan con los filtros.</p>
+                      </ProChartPanel>
+
+                      <ProChartPanel title="Clasificación del Equipo (Ranking)" action="General" glow="#eab308">
+                        <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                          {barberStats.map((stats, index) => {
+                            const barber = barbers.find((b) => b.id === stats.id);
+                            return (
+                              <div key={stats.id} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 flex items-center justify-between transition-all hover:bg-white/[0.05]">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs font-black text-white/50">{index + 1}</span>
+                                  <img src={resolveAssetUrl(barber?.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg"} alt={barber?.full_name} className="h-8 w-8 rounded-lg object-cover ring-1 ring-white/10" />
+                                  <div>
+                                    <p className="text-xs font-bold text-white leading-none">{barber?.full_name || stats.full_name}</p>
+                                    <p className="text-[9px] text-white/40 mt-1">{stats.completed_appointments} citas completadas</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-black text-emerald-400">${stats.verified_revenue.toLocaleString()}</p>
+                                  <p className="text-[8px] text-white/30 uppercase font-semibold">Comisión: ${stats.commission_earned.toLocaleString()}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {barberStats.length === 0 && <EmptyInsight text="No hay estadísticas disponibles." />}
                         </div>
-                      )}
+                      </ProChartPanel>
                     </div>
-                  </div>
+                  )}
 
-                  {/* EDIT MODAL OVERLAY */}
-                  {bookingForm.id && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                      <div className="relative w-full max-w-2xl overflow-y-auto max-h-[90vh] rounded-[2rem] border border-primary/20 bg-gradient-to-br from-[#16162a] to-[#0b0b14] p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-                        <div className="absolute top-4 right-4 z-10">
-                          <button onClick={() => setBookingForm(emptyBookingForm)} className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-white hover:bg-white/10 hover:text-red-400 transition-all cursor-pointer">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="border-b border-white/10 pb-4 mb-4">
-                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                            Modificar Cita: <span className="text-primary">{bookingForm.customer_name}</span>
-                          </h3>
-                        </div>
-                        <form onSubmit={saveBooking} className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Cliente"><ModernInput value={bookingForm.customer_name} onChange={(e: any) => setBookingForm({ ...bookingForm, customer_name: e.target.value })} /></Field>
-                            <Field label="Teléfono (WhatsApp)"><ModernInput placeholder="Ej: 3001234567" value={bookingForm.customer_phone} onChange={(e: any) => setBookingForm({ ...bookingForm, customer_phone: e.target.value })} className="font-mono" /></Field>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Servicio">
-                              <ModernSelect value={bookingForm.service_id} onChange={(e: any) => setBookingForm({ ...bookingForm, service_id: e.target.value })}>
-                                <option value="">Seleccione...</option>
-                                {services.map((s) => <option key={s.id} value={s.id}>{s.name} (${s.price})</option>)}
-                              </ModernSelect>
-                            </Field>
-                            <Field label="Barbero">
-                              <ModernSelect value={bookingForm.barber_id} onChange={(e: any) => setBookingForm({ ...bookingForm, barber_id: e.target.value })}>
-                                <option value="">Seleccione...</option>
-                                {barbers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
-                              </ModernSelect>
-                            </Field>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-4">
-                            <Field label="Fecha"><ModernInput type="date" value={bookingForm.appointment_date} onChange={(e: any) => setBookingForm({ ...bookingForm, appointment_date: e.target.value })} /></Field>
-                            <Field label="Hora">
-                              <ModernSelect value={bookingForm.start_time} onChange={(e: any) => setBookingForm({ ...bookingForm, start_time: e.target.value })}>
-                                <option value="">Hora</option>
-                                {availableTimes.map((t) => <option key={t} value={t}>{t}</option>)}
-                              </ModernSelect>
-                            </Field>
-                            <Field label="Estado Cita">
-                              <ModernSelect value={bookingForm.status} onChange={(e: any) => setBookingForm({ ...bookingForm, status: e.target.value as any })}>
-                                {statusOptions.map((o) => <option key={o} value={o}>{statusLabels[o]}</option>)}
-                              </ModernSelect>
-                            </Field>
-                            <Field label="Estado Pago">
-                              <ModernSelect value={bookingForm.payment_status} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_status: e.target.value as any })}>
-                                {paymentOptions.map((o) => <option key={o} value={o}>{paymentLabels[o]}</option>)}
-                              </ModernSelect>
-                            </Field>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Método de Pago">
-                              <ModernSelect value={bookingForm.payment_method} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_method: e.target.value })}>
-                                <option value="nequi">Nequi</option>
-                              </ModernSelect>
-                            </Field>
-                            <Field label="Ref. Pago Nequi"><ModernInput placeholder="Comprobante" value={bookingForm.payment_reference} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_reference: e.target.value })} className="font-mono" /></Field>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Captura Comprobante"><ModernInput placeholder="/payments/..." value={bookingForm.payment_screenshot} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_screenshot: e.target.value })} /></Field>
-                            <Field label="Notas Internas"><ModernInput placeholder="Opcional" value={bookingForm.notes} onChange={(e: any) => setBookingForm({ ...bookingForm, notes: e.target.value })} /></Field>
-                          </div>
-
-                          {bookingForm.payment_screenshot && (
-                            <div className="rounded-xl border border-white/10 p-3">
-                               <p className="text-xs font-semibold text-white/50 mb-2">Comprobante Recibido</p>
-                               <a href={resolveAssetUrl(bookingForm.payment_screenshot)} target="_blank" rel="noreferrer">
-                                 <img src={resolveAssetUrl(bookingForm.payment_screenshot)} alt="Comprobante" className="max-h-48 rounded-lg object-contain border border-white/5 shadow-md" />
-                               </a>
+                  {/* Análisis de Clientes (Clients) */}
+                  {activeDashboardTab === "clients" && (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="grid gap-6 xl:grid-cols-3">
+                        <ProChartPanel title="Edad de Clientes" action="Distribución" glow="#22c55e">
+                          <div className="relative h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={ageChartData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="rgba(255,255,255,0.06)" strokeWidth={4}>
+                                  {ageChartData.map((entry, index) => (
+                                    <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip content={<ProTooltip label="Clientes" />} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-white">100%</p>
+                                <p className="text-[10px] font-semibold uppercase text-white/40">Clientes</p>
+                              </div>
                             </div>
-                          )}
-
-                          <div className="flex items-center gap-3 pt-3 border-t border-white/5">
-                            <Button type="submit" className="bg-primary hover:bg-primary/80 text-white font-bold h-10 px-6 rounded-lg text-sm"><Save className="mr-1.5 h-4 w-4" /> Guardar Cambios</Button>
-                            <Button type="button" variant="outline" onClick={() => setBookingForm(emptyBookingForm)} className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-10 px-6 rounded-lg text-sm font-semibold">Cancelar</Button>
                           </div>
-                        </form>
+                        </ProChartPanel>
+
+                        <ProChartPanel title="Estado de Pagos" action="Distribución" glow="#f97316">
+                          <div className="relative h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={paymentStatusData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="rgba(255,255,255,0.06)" strokeWidth={4}>
+                                  {paymentStatusData.map((entry, index) => (
+                                    <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip content={<ProTooltip label="Pagos" />} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-white">{bookings.length}</p>
+                                <p className="text-[10px] font-semibold uppercase text-white/35">Total</p>
+                              </div>
+                            </div>
+                          </div>
+                        </ProChartPanel>
+
+                        <ProChartPanel title="Distribución de Citas" action="Estados" glow="#6366f1">
+                          <div className="relative h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={bookingStatusData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="rgba(255,255,255,0.06)" strokeWidth={4}>
+                                  {bookingStatusData.map((entry, index) => (
+                                    <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip content={<ProTooltip label="Citas" />} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-white">{bookings.length}</p>
+                                <p className="text-[10px] font-semibold uppercase text-white/35">Citas</p>
+                              </div>
+                            </div>
+                          </div>
+                        </ProChartPanel>
                       </div>
                     </div>
                   )}
                 </div>
               )}
+
+
 
               {activeTab === "clientes" && (
                 <div className="space-y-6 animate-in fade-in duration-300">
@@ -1968,146 +1878,358 @@ export function AdminPanel() {
                 </div>
               )}
 
-              {activeTab === "equipo" && (
-                <div className="space-y-6 animate-in fade-in duration-300">
-                  <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-                    
-                    {/* Columna Izquierda: Grid de Barberos */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-primary/20"><Users className="h-5 w-5 text-primary" /></div>
-                          Equipo de Profesionales
-                        </h3>
-                        <span className="text-xs text-white/50">{barbers.length} barberos activos</span>
+              {activeTab === "equipo" && (() => {
+                const filteredBarbers = barbers.filter((b) => {
+                  const query = barberSearch.trim().toLowerCase();
+                  if (!query) return true;
+                  return b.full_name.toLowerCase().includes(query) || b.username.toLowerCase().includes(query);
+                });
+
+                const selectedBarber = selectedBarberId !== null ? (barbers.find((b) => b.id === selectedBarberId) || null) : null;
+
+                const selectedBarberBookings = selectedBarber
+                  ? bookings
+                      .filter((booking) => booking.barber_id === selectedBarber.id)
+                      .sort((a, b) => {
+                        const dateCompare = b.appointment_date.localeCompare(a.appointment_date);
+                        if (dateCompare !== 0) return dateCompare;
+                        return b.start_time.localeCompare(a.start_time);
+                      })
+                  : [];
+
+                const filteredBarberBookings = selectedBarberBookings.filter((booking) => {
+                  const query = bookingSearch.trim().toLowerCase();
+                  const matchesStatus = bookingStatusFilter === "all" || booking.status === bookingStatusFilter;
+                  const matchesSearch =
+                    !query ||
+                    [
+                      booking.customer_name,
+                      booking.customer_phone,
+                      booking.service_name,
+                      booking.payment_reference,
+                      booking.appointment_date,
+                    ]
+                      .filter(Boolean)
+                      .some((value) => String(value).toLowerCase().includes(query));
+
+                  return matchesStatus && matchesSearch;
+                });
+
+                const exportBarberBookingsToCSV = () => {
+                  if (!selectedBarber) return;
+                  const headers = ["ID", "Cliente", "Teléfono", "Fecha", "Hora", "Servicio", "Estado", "Método Pago", "Referencia", "Estado Pago", "Notas"];
+                  const rows = filteredBarberBookings.map(b => [
+                    String(b.id),
+                    b.customer_name,
+                    b.customer_phone,
+                    b.appointment_date,
+                    b.start_time,
+                    b.service_name || "",
+                    statusLabels[b.status] || b.status,
+                    b.payment_method || "",
+                    b.payment_reference || "",
+                    paymentLabels[b.payment_status] || b.payment_status,
+                    b.notes || ""
+                  ]);
+                  downloadCSV(`citas-${selectedBarber.username}-${Date.now()}.csv`, headers, rows);
+                  toast.success(`Citas de ${selectedBarber.full_name} exportadas.`);
+                };
+
+                return (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+                      
+                      {/* Columna Izquierda: Listado de Barberos */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-primary/20"><Users className="h-5 w-5 text-primary" /></div>
+                            Equipo
+                          </h3>
+                          <Button 
+                            onClick={() => {
+                              setBarberForm(emptyBarberForm);
+                              setBarberFile(null);
+                              setIsBarberFormActive(true);
+                              setSelectedBarberId(null);
+                            }}
+                            size="sm"
+                            className="bg-primary hover:bg-primary/80 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 px-3 py-2 cursor-pointer"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Nuevo
+                          </Button>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                          <ModernInput 
+                            value={barberSearch} 
+                            onChange={(e: any) => setBarberSearch(e.target.value)} 
+                            placeholder="Buscar barbero..." 
+                            className="pl-10 h-10 text-xs" 
+                          />
+                        </div>
+
+                        <div className="max-h-[600px] space-y-2.5 overflow-y-auto pr-1">
+                          {filteredBarbers.map((barber) => (
+                            <button 
+                              key={barber.id} 
+                              type="button"
+                              onClick={() => {
+                                setSelectedBarberId(barber.id);
+                                setIsBarberFormActive(false);
+                              }} 
+                              className={`flex w-full items-center gap-3.5 rounded-2xl border p-3.5 text-left transition-all cursor-pointer ${
+                                selectedBarber?.id === barber.id && !isBarberFormActive
+                                  ? "border-primary/50 bg-primary/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]" 
+                                  : "border-white/5 bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
+                              }`}
+                            >
+                              <img src={resolveAssetUrl(barber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg?seed=Barber"} alt={barber.full_name} className="h-11 w-11 rounded-xl object-cover border border-white/10 shrink-0 animate-pulse-once" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-bold text-white leading-tight">{barber.full_name}</p>
+                                <p className="text-[10px] text-primary mt-1">@{barber.username}</p>
+                                <div className="flex items-center justify-between mt-1.5">
+                                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">Comisión: {barber.commission_rate ?? 15}%</span>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                          {filteredBarbers.length === 0 && (
+                            <p className="rounded-xl border border-white/5 border-dashed p-8 text-center text-xs text-white/45">No hay barberos con ese filtro.</p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {barbers.map((barber) => (
-                          <div key={barber.id} className="group overflow-hidden rounded-2xl border border-white/5 bg-[#0e0e18]/90 transition-all hover:border-primary/45 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5">
-                            <div className="relative h-24 bg-gradient-to-br from-primary/10 to-purple-600/10">
-                              <div className="absolute -bottom-6 left-5">
-                                <div className="h-16 w-16 overflow-hidden rounded-xl border-2 border-[#0e0e18] bg-black shadow-md">
-                                  <img src={resolveAssetUrl(barber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg"} alt={barber.full_name} className="h-full w-full object-cover" />
+                      {/* Columna Derecha: Formulario o Detalle + Citas */}
+                      <div className="space-y-4">
+                        {isBarberFormActive ? (
+                          <Card className="overflow-hidden border-0 bg-transparent ring-1 ring-white/10 relative">
+                            <div className="absolute inset-0 bg-[#0e0e18]/80 backdrop-blur-xl -z-10"></div>
+                            <CardHeader className="border-b border-white/5 py-4">
+                              <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-white">
+                                <Sparkles className="h-4 w-4 text-primary" />
+                                {barberForm.id ? `Modificar Perfil: ${barberForm.full_name}` : "Registrar Nuevo Barbero"}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                              <form onSubmit={saveBarber} className="space-y-5">
+                                <div className="grid gap-5 md:grid-cols-[100px_1fr]">
+                                  <div className="flex flex-col items-center gap-2.5">
+                                    <div className="h-20 w-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                                      <img 
+                                        src={barberFile ? URL.createObjectURL(barberFile) : resolveAssetUrl(barberForm.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg?seed=Barber"} 
+                                        alt="Barbero" 
+                                        className="h-full w-full object-cover" 
+                                      />
+                                    </div>
+                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[10px] font-bold text-white/70 transition-colors hover:bg-white/10 hover:text-white">
+                                      <Camera className="h-3 w-3" />
+                                      Foto
+                                      <input type="file" accept="image/*" className="hidden" onChange={(e: any) => setBarberFile(e.target.files?.[0] ?? null)} />
+                                    </label>
+                                  </div>
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <Field label="Nombre Completo"><ModernInput value={barberForm.full_name} onChange={(e: any) => setBarberForm({ ...barberForm, full_name: e.target.value })} placeholder="Ej: Carlos Méndez" required /></Field>
+                                    <Field label="Usuario (único)"><ModernInput value={barberForm.username} onChange={(e: any) => setBarberForm({ ...barberForm, username: e.target.value })} placeholder="carlosm" required /></Field>
+                                    <Field label="Contraseña"><ModernInput type="password" value={barberForm.password} onChange={(e: any) => setBarberForm({ ...barberForm, password: e.target.value })} placeholder={barberForm.id ? "Dejar vacío para conservar" : "Mín. 6 caracteres"} required={!barberForm.id} /></Field>
+                                    <Field label="Comisión (%)"><ModernInput type="number" min="0" max="100" value={barberForm.commission_rate} onChange={(e: any) => setBarberForm({ ...barberForm, commission_rate: e.target.value })} required /></Field>
+                                    <Field label="Especialidades (comas)"><ModernInput value={barberForm.specialties} onChange={(e: any) => setBarberForm({ ...barberForm, specialties: e.target.value })} placeholder="Degradados, Barba, Clásico..." /></Field>
+                                  </div>
+                                </div>
+                                <Field label="Biografía">
+                                  <ModernInput value={barberForm.description} onChange={(e: any) => setBarberForm({ ...barberForm, description: e.target.value })} placeholder="Experto en degradado clásico y cortes modernos..." />
+                                </Field>
+                                <div className="flex gap-2.5 border-t border-white/5 pt-4">
+                                  <Button type="submit" className="bg-primary hover:bg-primary/80 text-white font-bold h-10 px-6 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
+                                    <Save className="h-4 w-4" />
+                                    {barberForm.id ? "Guardar Cambios" : "Registrar"}
+                                  </Button>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    onClick={() => { 
+                                      setBarberForm(emptyBarberForm); 
+                                      setBarberFile(null); 
+                                      setIsBarberFormActive(false); 
+                                    }} 
+                                    className="h-10 rounded-xl border border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white text-xs font-semibold px-5 cursor-pointer"
+                                  >
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </form>
+                            </CardContent>
+                          </Card>
+                        ) : selectedBarber ? (
+                          <div className="space-y-5 animate-in fade-in duration-300">
+                            {/* Ficha Principal del Barbero */}
+                            <div className="rounded-3xl border border-white/5 bg-[#0e0e18]/80 p-5 shadow-sm space-y-5">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4">
+                                <div className="flex items-center gap-4">
+                                  <img src={resolveAssetUrl(selectedBarber.avatar_url) || "https://api.dicebear.com/7.x/avataaars/svg?seed=Barber"} alt={selectedBarber.full_name} className="h-16 w-16 rounded-2xl object-cover border border-white/10" />
+                                  <div>
+                                    <h3 className="text-xl font-bold text-white leading-tight">{selectedBarber.full_name}</h3>
+                                    <p className="text-xs text-primary font-bold mt-1">@{selectedBarber.username}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                  <button onClick={() => editBarber(selectedBarber)} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/75 hover:bg-white/10 hover:text-white transition-colors cursor-pointer" title="Editar perfil">Editar</button>
+                                  <button onClick={() => deleteBarber(selectedBarber.id)} className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500 hover:text-white transition-all cursor-pointer" title="Eliminar barbero">Eliminar</button>
                                 </div>
                               </div>
-                              <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 z-10">
-                                 <button onClick={() => editBarber(barber)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-md hover:bg-primary hover:scale-105 transition-all" title="Editar perfil"><Scissors className="h-3.5 w-3.5"/></button>
-                                 <button onClick={() => deleteBarber(barber.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-red-400 backdrop-blur-md hover:bg-red-500 hover:text-white hover:scale-105 transition-all" title="Eliminar barbero"><Trash2 className="h-3.5 w-3.5"/></button>
+
+                              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+                                <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 text-center">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Comisión</p>
+                                  <p className="text-lg font-black text-white mt-1">{selectedBarber.commission_rate ?? 15}%</p>
+                                </div>
+                                {(() => {
+                                  const stats = barberStats.find((s) => s.id === selectedBarber.id);
+                                  return (
+                                    <>
+                                      <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 text-center">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Cortes</p>
+                                        <p className="text-lg font-black text-amber-300 mt-1">{stats ? stats.completed_appointments : 0}</p>
+                                      </div>
+                                      <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 text-center col-span-2 sm:col-span-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Generado</p>
+                                        <p className="text-lg font-black text-emerald-400 mt-1">${stats ? stats.verified_revenue.toLocaleString() : 0}</p>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
-                            </div>
-                            <div className="p-5 pt-8">
-                              <h4 className="text-sm font-bold text-white leading-tight">{barber.full_name}</h4>
-                              <p className="text-[10px] font-bold text-primary mt-0.5">@{barber.username}</p>
-                              <p className="text-xs text-white/50 mt-2 line-clamp-2 leading-relaxed">{barber.description || "Sin descripción profesional."}</p>
-                              
-                              {barber.specialties && barber.specialties.length > 0 && (
-                                <div className="mt-2.5 flex flex-wrap gap-1">
-                                  {barber.specialties.slice(0, 3).map((item) => (
-                                    <span key={item} className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">{item}</span>
-                                  ))}
+
+                              {selectedBarber.specialties && selectedBarber.specialties.length > 0 && (
+                                <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs">
+                                  <p className="mb-2 font-bold uppercase tracking-wider text-white/45 text-[10px]">Especialidades</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {selectedBarber.specialties.map((spec) => (
+                                      <span key={spec} className="rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-bold text-primary">{spec}</span>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
-                              
-                              <p className="mt-2 text-[10px] font-semibold text-emerald-400">Comisión fija: {barber.commission_rate ?? 15}%</p>
+
+                              <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs">
+                                <p className="mb-1.5 font-bold uppercase tracking-wider text-white/45 text-[10px]">Biografía Profesional</p>
+                                <p className="text-white/70 italic leading-relaxed">"{selectedBarber.description || 'Sin biografía profesional.'}"</p>
+                              </div>
 
                               {(() => {
-                                const stats = barberStats.find((s) => s.id === barber.id);
-                                if (!stats) return null;
+                                const stats = barberStats.find((s) => s.id === selectedBarber.id);
+                                if (!stats || stats.commission_earned <= 0) return null;
                                 return (
-                                  <div className="mt-3.5 border-t border-white/5 pt-3.5 space-y-2.5">
-                                    <div className="grid grid-cols-2 gap-2 text-[9px]">
-                                      <div className="rounded-lg bg-white/5 p-2">
-                                        <p className="text-white/40 uppercase font-semibold">Cortes</p>
-                                        <p className="text-xs font-bold text-white mt-0.5">{stats.completed_appointments}</p>
-                                      </div>
-                                      <div className="rounded-lg bg-white/5 p-2">
-                                        <p className="text-white/40 uppercase font-semibold">Generado</p>
-                                        <p className="text-xs font-bold text-white mt-0.5">${stats.verified_revenue.toLocaleString()}</p>
-                                      </div>
+                                  <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-4 flex items-center justify-between gap-4">
+                                    <div>
+                                      <p className="text-[9px] text-emerald-400/60 uppercase font-black tracking-widest">Comisión Acumulada</p>
+                                      <p className="text-xl font-black text-emerald-400 mt-1">${stats.commission_earned.toLocaleString()}</p>
                                     </div>
-                                    <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-2 flex items-center justify-between gap-2">
-                                      <div>
-                                        <p className="text-[8px] text-emerald-400/60 uppercase font-bold tracking-wide">Comisión a Pagar</p>
-                                        <p className="text-xs font-black text-emerald-400 mt-0.5">${stats.commission_earned.toLocaleString()}</p>
-                                      </div>
-                                      <button
-                                        onClick={() => {
-                                          toast.success(`Liquidación de $${stats.commission_earned.toLocaleString()} registrada para ${barber.full_name}. Realiza la transferencia.`);
-                                        }}
-                                        className="rounded-md bg-emerald-500 text-white px-2 py-1 text-[9px] font-bold shadow-md shadow-emerald-500/10 hover:opacity-90 active:scale-95 transition-all shrink-0"
-                                      >
-                                        Liquidar
-                                      </button>
-                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        toast.success(`Liquidación de $${stats.commission_earned.toLocaleString()} registrada para ${selectedBarber.full_name}. Realiza la transferencia.`);
+                                      }}
+                                      className="rounded-xl bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-lg shadow-emerald-500/25 hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
+                                    >
+                                      Liquidar Comisión
+                                    </button>
                                   </div>
                                 );
                               })()}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* Columna Derecha: Formulario de Barberos */}
-                    <div className="space-y-4">
-                      <Card className="overflow-hidden border-0 bg-transparent ring-1 ring-white/10 relative">
-                        <div className="absolute inset-0 bg-[#0e0e18]/80 backdrop-blur-xl -z-10"></div>
-                        <CardHeader className="border-b border-white/5 py-4">
-                          <CardTitle className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-white">
-                            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                            {barberForm.id ? "Editar Perfil" : "Nuevo Barbero"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-5">
-                          <form onSubmit={saveBarber} className="space-y-4">
-                            <Field label="Nombre Completo">
-                              <ModernInput placeholder="Ej: Carlos Méndez" value={barberForm.full_name} onChange={(e: any) => setBarberForm({ ...barberForm, full_name: e.target.value })} required />
-                            </Field>
-                            <Field label="Usuario (único)">
-                              <ModernInput placeholder="carlosm" value={barberForm.username} onChange={(e: any) => setBarberForm({ ...barberForm, username: e.target.value })} required />
-                            </Field>
-                            <Field label="Contraseña">
-                              <ModernInput type="password" placeholder={barberForm.id ? "Dejar vacío para conservar" : "Mín. 6 caracteres"} value={barberForm.password} onChange={(e: any) => setBarberForm({ ...barberForm, password: e.target.value })} required={!barberForm.id} />
-                            </Field>
-                            <Field label="Foto de Perfil">
-                              <ModernInput type="file" accept="image/*" onChange={(e: any) => setBarberFile(e.target.files?.[0] ?? null)} className="pt-[8px] h-11 text-xs" />
-                            </Field>
-                            <Field label="Biografía">
-                              <ModernInput placeholder="Experto en degradado clásico..." value={barberForm.description} onChange={(e: any) => setBarberForm({ ...barberForm, description: e.target.value })} />
-                            </Field>
-                            <Field label="Especialidades (comas)">
-                              <ModernInput placeholder="Degradados, Barba, Clásico..." value={barberForm.specialties} onChange={(e: any) => setBarberForm({ ...barberForm, specialties: e.target.value })} />
-                            </Field>
-                            <Field label="Comisión (%)">
-                              <ModernInput type="number" min="0" max="100" value={barberForm.commission_rate} onChange={(e: any) => setBarberForm({ ...barberForm, commission_rate: e.target.value })} required />
-                            </Field>
+                            {/* Panel de Reservas del Barbero */}
+                            <div className="rounded-3xl border border-white/5 bg-[#0e0e18]/80 p-5 shadow-sm space-y-5">
+                              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-white/5 pb-4">
+                                <div>
+                                  <h4 className="text-sm font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
+                                    <Calendar className="h-4.5 w-4.5 text-primary" />
+                                    Citas y Reservas
+                                  </h4>
+                                  <p className="text-[10px] text-white/45 mt-1">Monitorea y aprueba las citas de {selectedBarber.full_name}.</p>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_120px] md:w-[460px] shrink-0">
+                                  <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
+                                    <ModernInput 
+                                      value={bookingSearch} 
+                                      onChange={(e: any) => setBookingSearch(e.target.value)} 
+                                      placeholder="Buscar cliente..." 
+                                      className="pl-9 h-9 text-xs" 
+                                    />
+                                  </div>
+                                  <div className="relative">
+                                    <Filter className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
+                                    <ModernSelect value={bookingStatusFilter} onChange={(e: any) => setBookingStatusFilter(e.target.value as any)} className="pl-9 h-9 text-xs">
+                                      <option value="all">Todos</option>
+                                      {statusOptions.map((status) => (
+                                        <option key={status} value={status}>{statusLabels[status]}</option>
+                                      ))}
+                                    </ModernSelect>
+                                  </div>
+                                  <Button 
+                                    onClick={exportBarberBookingsToCSV} 
+                                    variant="outline"
+                                    className="h-9 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white text-[10px] font-bold px-3 flex items-center gap-1.5 justify-center cursor-pointer"
+                                  >
+                                    <Upload className="h-3.5 w-3.5 rotate-180" />
+                                    Exportar
+                                  </Button>
+                                </div>
+                              </div>
 
-                            <div className="flex gap-2.5 border-t border-white/5 pt-4">
-                              <Button type="submit" className="bg-primary hover:bg-primary/80 text-white font-bold h-10 px-5 rounded-xl text-xs flex items-center gap-1.5 flex-1 justify-center">
-                                <Save className="h-4 w-4" />
-                                {barberForm.id ? "Actualizar" : "Crear"}
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                onClick={() => { 
-                                  setBarberForm(emptyBarberForm); 
-                                  setBarberFile(null); 
-                                }} 
-                                className="h-10 rounded-xl border border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white text-xs font-semibold px-4"
-                              >
-                                Cancelar
-                              </Button>
+                              <div className="max-h-[400px] overflow-y-auto pr-1 space-y-3">
+                                {filteredBarberBookings.map((booking, i) => (
+                                  <div key={booking.id} style={{animationDelay: `${i * 20}ms`}} className="group relative flex flex-col gap-3.5 rounded-2xl border border-white/5 bg-gradient-to-r from-white/[0.01] to-transparent p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-primary/25 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-1">
+                                    <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary to-purple-600 rounded-l-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                                    <div className="flex flex-col gap-1.5 pl-1">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <h5 className="font-bold text-white text-sm group-hover:text-primary transition-colors">{booking.customer_name}</h5>
+                                        <StatusBadge status={booking.status} />
+                                        <PaymentBadge status={booking.payment_status} />
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[10px] text-white/50">
+                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-blue-400" /> {booking.appointment_date} / {booking.start_time}</span>
+                                        <span className="flex items-center gap-1"><Briefcase className="h-3 w-3 text-purple-400" /> {booking.service_name}</span>
+                                        <span>Ref: <strong className="text-white/80 font-mono">{booking.payment_reference || "N/A"}</strong></span>
+                                        {booking.payment_screenshot && (
+                                           <a href={resolveAssetUrl(booking.payment_screenshot)} target="_blank" rel="noreferrer" className="text-primary hover:underline hover:text-white transition-colors font-bold text-[9px]">Comprobante</a>
+                                         )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 self-end md:self-auto shrink-0 pl-1">
+                                      {buildWhatsappConfirmationUrl(booking) && (
+                                         <a href={buildWhatsappConfirmationUrl(booking)} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#25D366]/10 text-[#25D366] transition-all hover:bg-[#25D366] hover:text-white hover:scale-105" title="WhatsApp">
+                                            <MessageCircle className="h-4 w-4" />
+                                          </a>
+                                      )}
+                                      <button onClick={() => updateBookingStatus(booking.id, "confirmed", "verified")} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white hover:scale-105" title="Aprobar"><CheckCircle2 className="h-4 w-4" /></button>
+                                      <button onClick={() => updateBookingStatus(booking.id, "cancelled", booking.payment_status)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-all hover:bg-red-500 hover:text-white hover:scale-105" title="Cancelar"><XCircle className="h-4 w-4" /></button>
+                                      <Button size="sm" variant="ghost" onClick={() => startBookingEdit(booking)} className="h-8 rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold text-white transition-all hover:bg-white hover:text-black">Editar</Button>
+                                      <button onClick={() => deleteBooking(booking.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/20 text-red-500 transition-all hover:bg-red-500 hover:text-white hover:scale-105" title="Eliminar"><Trash2 className="h-4 w-4" /></button>
+                                    </div>
+                                  </div>
+                                ))}
+                                {filteredBarberBookings.length === 0 && (
+                                  <p className="rounded-xl border border-white/5 border-dashed p-6 text-center text-xs text-white/40 italic">No hay reservas registradas.</p>
+                                )}
+                              </div>
                             </div>
-                          </form>
-                        </CardContent>
-                      </Card>
-                    </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-3xl border border-white/5 border-dashed bg-[#0e0e18]/50 p-12 text-center flex flex-col items-center justify-center h-[350px]">
+                            <Users className="h-10 w-10 text-white/20 mb-3" />
+                            <p className="text-white/45 text-sm">Selecciona un barbero de la lista de la izquierda para ver su rendimiento, gestionar su horario y administrar sus citas.</p>
+                          </div>
+                        )}
+                      </div>
 
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {activeTab === "galeria" && (
                 <div className="space-y-8">
@@ -2701,20 +2823,109 @@ export function AdminPanel() {
             </div>
           )}
         </div>
+
+        {/* EDIT MODAL OVERLAY */}
+        {bookingForm.id && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-2xl overflow-y-auto max-h-[90vh] rounded-[2rem] border border-primary/20 bg-gradient-to-br from-[#16162a] to-[#0b0b14] p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="absolute top-4 right-4 z-10">
+                <button onClick={() => setBookingForm(emptyBookingForm)} className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-white hover:bg-white/10 hover:text-red-400 transition-all cursor-pointer">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="border-b border-white/10 pb-4 mb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                  Modificar Cita: <span className="text-primary">{bookingForm.customer_name}</span>
+                </h3>
+              </div>
+              <form onSubmit={saveBooking} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Cliente"><ModernInput value={bookingForm.customer_name} onChange={(e: any) => setBookingForm({ ...bookingForm, customer_name: e.target.value })} /></Field>
+                  <Field label="Teléfono (WhatsApp)"><ModernInput placeholder="Ej: 3001234567" value={bookingForm.customer_phone} onChange={(e: any) => setBookingForm({ ...bookingForm, customer_phone: e.target.value })} className="font-mono" /></Field>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Servicio">
+                    <ModernSelect value={bookingForm.service_id} onChange={(e: any) => setBookingForm({ ...bookingForm, service_id: e.target.value })}>
+                      <option value="">Seleccione...</option>
+                      {services.map((s) => <option key={s.id} value={s.id}>{s.name} (${s.price})</option>)}
+                    </ModernSelect>
+                  </Field>
+                  <Field label="Barbero">
+                    <ModernSelect value={bookingForm.barber_id} onChange={(e: any) => setBookingForm({ ...bookingForm, barber_id: e.target.value })}>
+                      <option value="">Seleccione...</option>
+                      {barbers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
+                    </ModernSelect>
+                  </Field>
+                </div>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Field label="Fecha"><ModernInput type="date" value={bookingForm.appointment_date} onChange={(e: any) => setBookingForm({ ...bookingForm, appointment_date: e.target.value })} /></Field>
+                  <Field label="Hora">
+                    <ModernSelect value={bookingForm.start_time} onChange={(e: any) => setBookingForm({ ...bookingForm, start_time: e.target.value })}>
+                      <option value="">Hora</option>
+                      {availableTimes.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </ModernSelect>
+                  </Field>
+                  <Field label="Estado Cita">
+                    <ModernSelect value={bookingForm.status} onChange={(e: any) => setBookingForm({ ...bookingForm, status: e.target.value as any })}>
+                      {statusOptions.map((o) => <option key={o} value={o}>{statusLabels[o]}</option>)}
+                    </ModernSelect>
+                  </Field>
+                  <Field label="Estado Pago">
+                    <ModernSelect value={bookingForm.payment_status} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_status: e.target.value as any })}>
+                      {paymentOptions.map((o) => <option key={o} value={o}>{paymentLabels[o]}</option>)}
+                    </ModernSelect>
+                  </Field>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Método de Pago">
+                    <ModernSelect value={bookingForm.payment_method} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_method: e.target.value })}>
+                      <option value="nequi">Nequi</option>
+                    </ModernSelect>
+                  </Field>
+                  <Field label="Ref. Pago Nequi"><ModernInput placeholder="Comprobante" value={bookingForm.payment_reference} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_reference: e.target.value })} className="font-mono" /></Field>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Captura Comprobante"><ModernInput placeholder="/payments/..." value={bookingForm.payment_screenshot} onChange={(e: any) => setBookingForm({ ...bookingForm, payment_screenshot: e.target.value })} /></Field>
+                  <Field label="Notas Internas"><ModernInput placeholder="Opcional" value={bookingForm.notes} onChange={(e: any) => setBookingForm({ ...bookingForm, notes: e.target.value })} /></Field>
+                </div>
+
+                {bookingForm.payment_screenshot && (
+                  <div className="rounded-xl border border-white/10 p-3">
+                     <p className="text-xs font-semibold text-white/50 mb-2">Comprobante Recibido</p>
+                     <a href={resolveAssetUrl(bookingForm.payment_screenshot)} target="_blank" rel="noreferrer">
+                       <img src={resolveAssetUrl(bookingForm.payment_screenshot)} alt="Comprobante" className="max-h-48 rounded-lg object-contain border border-white/5 shadow-md" />
+                     </a>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 pt-3 border-t border-white/5">
+                  <Button type="submit" className="bg-primary hover:bg-primary/80 text-white font-bold h-10 px-6 rounded-lg text-sm"><Save className="mr-1.5 h-4 w-4" /> Guardar Cambios</Button>
+                  <Button type="button" variant="outline" onClick={() => setBookingForm(emptyBookingForm)} className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-10 px-6 rounded-lg text-sm font-semibold">Cancelar</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
       <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
         <button
           onClick={() => {
-            setActiveTab("reservas");
-            document.getElementById("reservas-list")?.scrollIntoView({ behavior: "smooth" });
+            setActiveTab("equipo");
           }}
           className="group flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-primary text-white shadow-[0_18px_35px_-12px_rgba(99,102,241,0.9)] transition-all hover:-translate-y-1 hover:scale-105 active:scale-95"
-          title="Ir a reservas"
+          title="Ver citas de equipo"
         >
           <Calendar className="h-6 w-6 transition-transform group-hover:rotate-6" />
         </button>
         <button
-          onClick={() => setActiveTab("equipo")}
+          onClick={() => {
+            setBarberForm(emptyBarberForm);
+            setBarberFile(null);
+            setIsBarberFormActive(true);
+            setSelectedBarberId(null);
+            setActiveTab("equipo");
+          }}
           className="group flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-[#11111c]/95 text-white shadow-[0_18px_35px_-18px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-all hover:-translate-y-1 hover:bg-white hover:text-black active:scale-95"
           title="Agregar profesional"
         >
